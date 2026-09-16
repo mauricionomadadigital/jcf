@@ -1,0 +1,3071 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#091a2f" />
+    <meta name="description" content="Panel administrativo de monitoreo JCF 24/7" />
+    <title>JCF Monitor 24/7 · Panel de control</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23091a2f'/%3E%3Cpath d='M12 34h9l5-13 10 25 6-17 4 5h6' fill='none' stroke='%233de2c4' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        --navy: #091a2f;
+        --navy-2: #102844;
+        --ink: #14243a;
+        --muted: #718096;
+        --line: #e4eaf1;
+        --bg: #f4f7fb;
+        --card: #fff;
+        --blue: #2367f5;
+        --cyan: #27cbb3;
+        --green: #1dad72;
+        --amber: #f1a526;
+        --red: #e4545e;
+        --purple: #7357e8;
+        --shadow: 0 12px 35px rgba(16, 40, 68, 0.08);
+        --radius: 18px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 255px 1fr;
+      }
+      .sidebar {
+        background: var(--navy);
+        color: #d6e2ef;
+        padding: 24px 16px;
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 255px;
+        max-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        scrollbar-gutter: stable;
+        scrollbar-width: thin;
+        scrollbar-color: #356184 #102844;
+        z-index: 30;
+      }
+      .sidebar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .sidebar::-webkit-scrollbar-track {
+        background: #102844;
+      }
+      .sidebar::-webkit-scrollbar-thumb {
+        background: #356184;
+        border-radius: 99px;
+      }
+      .brand {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 0 10px 28px;
+      }
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        background: linear-gradient(145deg, #276ff9, #34d5bc);
+        display: grid;
+        place-items: center;
+        box-shadow: 0 8px 22px rgba(35, 103, 245, 0.35);
+      }
+      .brand-mark svg {
+        width: 25px;
+      }
+      .brand strong {
+        display: block;
+        color: #fff;
+        font-size: 17px;
+        line-height: 1.15;
+      }
+      .brand small {
+        color: #8da4ba;
+        font-size: 12px;
+      }
+      .nav-label {
+        padding: 0 12px 8px;
+        color: #69839e;
+        text-transform: uppercase;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+      .nav {
+        display: grid;
+        gap: 5px;
+      }
+      .nav-btn {
+        border: 0;
+        background: transparent;
+        color: #9fb3c8;
+        border-radius: 11px;
+        padding: 11px 12px;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        transition: 0.2s;
+      }
+      .nav-btn:hover {
+        background: #102b49;
+        color: #fff;
+      }
+      .nav-btn.active {
+        background: #173858;
+        color: #fff;
+        box-shadow: inset 3px 0 #36dec4;
+      }
+      .nav-btn svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+      }
+      .nav-btn .badge-count {
+        margin-left: auto;
+        background: #ef5862;
+        color: #fff;
+        font-size: 11px;
+        min-width: 21px;
+        height: 21px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+      }
+      .sidebar-bottom {
+        margin-top: auto;
+      }
+      .system-mini {
+        background: #102b49;
+        border: 1px solid #173e61;
+        border-radius: 14px;
+        padding: 13px;
+        margin-bottom: 12px;
+      }
+      .system-mini-row {
+        display: flex;
+        justify-content: space-between;
+        color: #9eb2c6;
+        font-size: 12px;
+        margin-top: 6px;
+      }
+      .system-mini strong {
+        color: #fff;
+      }
+      .pulse {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #3de2c4;
+        box-shadow: 0 0 0 5px rgba(61, 226, 196, 0.1);
+        margin-right: 8px;
+      }
+      .main {
+        grid-column: 2;
+        min-width: 0;
+      }
+      .topbar {
+        height: 78px;
+        background: rgba(255, 255, 255, 0.92);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 30px;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: blur(12px);
+      }
+      .page-title h1 {
+        font-size: 22px;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+      .page-title p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .live-chip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #27765f;
+        background: #eafaf5;
+        border: 1px solid #c8f1e5;
+        border-radius: 99px;
+        padding: 8px 12px;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        border: 1px solid var(--line);
+        background: #fff;
+        display: grid;
+        place-items: center;
+        color: #607287;
+        position: relative;
+      }
+      .icon-btn .dot {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #f04f5b;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        right: 8px;
+        top: 7px;
+      }
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: #dce7f4;
+        color: #25415f;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+      }
+      .content {
+        padding: 27px 30px 44px;
+        max-width: 1580px;
+        margin: 0 auto;
+      }
+      .screen {
+        display: none;
+      }
+      .screen.active {
+        display: block;
+        animation: in 0.25s ease;
+      }
+      @keyframes in {
+        from {
+          opacity: 0.3;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .action-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 12px;
+      }
+      .period {
+        display: flex;
+        background: #e9eef5;
+        border-radius: 10px;
+        padding: 3px;
+      }
+      .period button {
+        border: 0;
+        background: transparent;
+        color: #718096;
+        padding: 7px 13px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .period button.active {
+        background: #fff;
+        color: #1d3552;
+        box-shadow: 0 2px 7px rgba(0, 0, 0, 0.08);
+      }
+      .btn {
+        border: 0;
+        border-radius: 11px;
+        padding: 10px 15px;
+        font-weight: 750;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-primary {
+        background: var(--blue);
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(35, 103, 245, 0.22);
+      }
+      .btn-soft {
+        background: #eaf0ff;
+        color: #235bd1;
+      }
+      .btn-outline {
+        background: #fff;
+        color: #29445f;
+        border: 1px solid var(--line);
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 17px;
+        margin-bottom: 20px;
+      }
+      .stat {
+        background: var(--card);
+        border: 1px solid #e8edf3;
+        border-radius: var(--radius);
+        padding: 19px;
+        box-shadow: 0 7px 20px rgba(20, 36, 58, 0.035);
+        position: relative;
+        overflow: hidden;
+      }
+      .stat-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .stat-icon {
+        width: 39px;
+        height: 39px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+      }
+      .stat-icon svg {
+        width: 20px;
+      }
+      .si-blue {
+        background: #eaf0ff;
+        color: var(--blue);
+      }
+      .si-green {
+        background: #e8f8f1;
+        color: var(--green);
+      }
+      .si-amber {
+        background: #fff5df;
+        color: var(--amber);
+      }
+      .si-purple {
+        background: #f0edff;
+        color: var(--purple);
+      }
+      .stat-label {
+        color: #708096;
+        font-weight: 650;
+        font-size: 13px;
+        margin-top: 13px;
+      }
+      .stat-value {
+        font-size: 28px;
+        font-weight: 820;
+        letter-spacing: -0.03em;
+        margin-top: 2px;
+      }
+      .delta {
+        font-size: 12px;
+        color: var(--green);
+        font-weight: 750;
+      }
+      .delta.neutral {
+        color: #8290a0;
+      }
+      .stat-line {
+        position: absolute;
+        height: 3px;
+        bottom: 0;
+        left: 0;
+        width: 68%;
+        background: var(--blue);
+        border-radius: 0 4px 4px 0;
+      }
+      .grid-main {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(290px, 0.75fr);
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid #e6ecf2;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      .card-head {
+        padding: 19px 21px;
+        border-bottom: 1px solid #edf1f5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .card-head h2 {
+        font-size: 16px;
+        margin: 0;
+      }
+      .card-head p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .link-btn {
+        border: 0;
+        background: none;
+        color: var(--blue);
+        font-weight: 750;
+        font-size: 13px;
+      }
+      .status-banner {
+        padding: 20px 21px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 15px;
+        align-items: center;
+      }
+      .big-status {
+        width: 54px;
+        height: 54px;
+        border-radius: 17px;
+        background: #e7f9f2;
+        color: var(--green);
+        display: grid;
+        place-items: center;
+      }
+      .big-status svg {
+        width: 27px;
+      }
+      .status-banner strong {
+        display: block;
+        font-size: 17px;
+      }
+      .status-banner p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .next-check {
+        text-align: right;
+      }
+      .next-check span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .next-check strong {
+        font-size: 18px;
+      }
+      .map-list {
+        padding: 3px 21px 17px;
+      }
+      .location {
+        display: grid;
+        grid-template-columns: 1.2fr 0.85fr 0.7fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        border-top: 1px solid #edf1f5;
+      }
+      .place strong {
+        display: block;
+      }
+      .place small {
+        color: var(--muted);
+      }
+      .status-pill,
+      .plan-pill,
+      .channel-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 99px;
+        padding: 5px 9px;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .status-pill:before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .open {
+        background: #e7f8f1;
+        color: #178e5c;
+      }
+      .closed {
+        background: #feecef;
+        color: #c33f4b;
+      }
+      .goal {
+        background: #fff4df;
+        color: #bd7810;
+      }
+      .error {
+        background: #edf1f5;
+        color: #6d7e90;
+      }
+      .plan-free {
+        background: #edf1f5;
+        color: #55687c;
+      }
+      .plan-vip {
+        background: #ece8ff;
+        color: #6848dc;
+      }
+      .channel-telegram {
+        background: #e8f4ff;
+        color: #2580c2;
+      }
+      .channel-email {
+        background: #f0edff;
+        color: #6d55ca;
+      }
+      .channel-call {
+        background: #e8f8f1;
+        color: #16895a;
+      }
+      .health {
+        padding: 23px;
+      }
+      .health-ring {
+        width: 156px;
+        height: 156px;
+        margin: 7px auto 20px;
+        border-radius: 50%;
+        background: conic-gradient(var(--cyan) 0 84%, #e7edf3 84%);
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+      .health-ring:before {
+        content: "";
+        width: 119px;
+        height: 119px;
+        background: #fff;
+        border-radius: 50%;
+        position: absolute;
+      }
+      .health-ring div {
+        z-index: 1;
+        text-align: center;
+      }
+      .health-ring strong {
+        font-size: 29px;
+        display: block;
+      }
+      .health-ring span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .legend {
+        display: grid;
+        gap: 11px;
+      }
+      .legend-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+      }
+      .legend-row span {
+        color: var(--muted);
+      }
+      .legend-row strong:before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        display: inline-block;
+        border-radius: 50%;
+        background: var(--cyan);
+        margin-right: 7px;
+      }
+      .legend-row:nth-child(2) strong:before {
+        background: var(--amber);
+      }
+      .legend-row:nth-child(3) strong:before {
+        background: #cfd7e1;
+      }
+      .activity {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .timeline {
+        padding: 11px 21px 18px;
+      }
+      .event {
+        display: grid;
+        grid-template-columns: 35px 1fr auto;
+        gap: 11px;
+        align-items: start;
+        padding: 12px 0;
+        border-bottom: 1px solid #edf1f5;
+      }
+      .event:last-child {
+        border-bottom: 0;
+      }
+      .event-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: #edf3ff;
+        color: var(--blue);
+      }
+      .event p {
+        margin: 0;
+        font-size: 13px;
+      }
+      .event p strong {
+        display: block;
+        color: var(--ink);
+      }
+      .event time {
+        color: #93a0ae;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .conversion {
+        padding: 20px 21px;
+      }
+      .bars {
+        height: 155px;
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+        padding-top: 10px;
+      }
+      .bar-col {
+        flex: 1;
+        text-align: center;
+        color: #8795a4;
+        font-size: 11px;
+      }
+      .bar {
+        border-radius: 7px 7px 2px 2px;
+        background: linear-gradient(180deg, #3b7cff, #7ba7ff);
+        margin-bottom: 6px;
+        min-height: 12px;
+      }
+      .conversion-foot {
+        display: flex;
+        gap: 20px;
+        margin-top: 13px;
+      }
+      .conversion-foot strong {
+        font-size: 19px;
+      }
+      .conversion-foot span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .toolbar {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        padding: 12px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      .search {
+        position: relative;
+        flex: 1;
+        min-width: 190px;
+      }
+      .search svg {
+        position: absolute;
+        left: 12px;
+        top: 10px;
+        width: 18px;
+        color: #8b99a8;
+      }
+      .search input {
+        width: 100%;
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0 12px 0 38px;
+        outline: 0;
+      }
+      .search input:focus,
+      .field input:focus,
+      .field select:focus {
+        border-color: #7ca5fb;
+        box-shadow: 0 0 0 3px rgba(35, 103, 245, 0.1);
+      }
+      .select {
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: #4a5e73;
+        padding: 0 32px 0 12px;
+      }
+      .table-card {
+        overflow: hidden;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 780px;
+      }
+      th {
+        text-align: left;
+        padding: 12px 16px;
+        background: #f8fafc;
+        color: #7b8998;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      td {
+        padding: 14px 16px;
+        border-top: 1px solid #edf1f5;
+        font-size: 13px;
+      }
+      tbody tr:hover {
+        background: #fbfcfe;
+      }
+      .person {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .person-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: #e9eef7;
+        color: #38526d;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 12px;
+      }
+      .person strong {
+        display: block;
+      }
+      .person small {
+        color: var(--muted);
+      }
+      .row-action {
+        border: 0;
+        background: #f0f3f7;
+        width: 31px;
+        height: 31px;
+        border-radius: 9px;
+        color: #607287;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .tabs {
+        display: flex;
+        gap: 5px;
+      }
+      .tab-btn {
+        border: 0;
+        background: transparent;
+        padding: 8px 12px;
+        border-radius: 9px;
+        color: #68798c;
+        font-weight: 700;
+      }
+      .tab-btn.active {
+        background: #eaf0ff;
+        color: var(--blue);
+      }
+      .kanban {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .kanban-col {
+        background: #edf2f7;
+        border-radius: 16px;
+        padding: 12px;
+        min-height: 380px;
+      }
+      .kanban-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 3px 3px 12px;
+        font-weight: 800;
+      }
+      .kanban-title span {
+        background: #fff;
+        color: #6f7d8b;
+        border-radius: 8px;
+        padding: 2px 8px;
+        font-size: 12px;
+      }
+      .alert-card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 14px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 10px rgba(20, 36, 58, 0.035);
+      }
+      .alert-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .alert-card p {
+        margin: 8px 0;
+        color: #5f7082;
+        font-size: 13px;
+      }
+      .alert-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #8794a3;
+        font-size: 12px;
+      }
+      .alert-card.urgent {
+        border-left: 4px solid var(--green);
+      }
+      .calls-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 18px;
+      }
+      .wallet {
+        padding: 22px;
+        background: linear-gradient(135deg, #0c223b, #174a6b);
+        color: #fff;
+        border-radius: var(--radius);
+        position: relative;
+        overflow: hidden;
+      }
+      .wallet:after {
+        content: "";
+        position: absolute;
+        width: 210px;
+        height: 210px;
+        border: 40px solid rgba(61, 226, 196, 0.08);
+        border-radius: 50%;
+        right: -90px;
+        top: -90px;
+      }
+      .wallet small {
+        color: #9fc0d6;
+      }
+      .wallet .money {
+        font-size: 33px;
+        font-weight: 850;
+        margin: 5px 0;
+      }
+      .wallet .minutes {
+        color: #b9d7e9;
+      }
+      .wallet .btn {
+        margin-top: 18px;
+        background: #35d6bd;
+        color: #092139;
+        position: relative;
+        z-index: 1;
+      }
+      .voice-box {
+        padding: 21px;
+      }
+      .voice-wave {
+        height: 70px;
+        background: #f1f5fa;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        margin: 16px 0;
+      }
+      .voice-wave i {
+        display: block;
+        width: 4px;
+        border-radius: 5px;
+        background: #2a70f6;
+      }
+      .voice-wave i:nth-child(3n) {
+        height: 36px;
+      }
+      .voice-wave i:nth-child(3n + 1) {
+        height: 17px;
+      }
+      .voice-wave i:nth-child(3n + 2) {
+        height: 27px;
+      }
+      .script {
+        background: #f8fafc;
+        border: 1px solid #e8edf2;
+        padding: 14px;
+        border-radius: 12px;
+        color: #526579;
+        font-size: 13px;
+      }
+      .settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .setting-card {
+        padding: 20px;
+      }
+      .setting-card h3 {
+        margin: 0 0 4px;
+      }
+      .setting-card > p {
+        color: var(--muted);
+        margin: 0 0 17px;
+        font-size: 13px;
+      }
+      .integration {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 0;
+        border-top: 1px solid #edf1f5;
+      }
+      .integration-logo {
+        width: 39px;
+        height: 39px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        color: #fff;
+      }
+      .tg {
+        background: #299bd7;
+      }
+      .tk {
+        background: #6747da;
+      }
+      .mail {
+        background: #ec5a63;
+      }
+      .integration div:nth-child(2) {
+        flex: 1;
+      }
+      .integration strong {
+        display: block;
+      }
+      .integration small {
+        color: var(--muted);
+      }
+      .toggle {
+        width: 44px;
+        height: 24px;
+        border: 0;
+        border-radius: 99px;
+        background: #ccd5df;
+        padding: 3px;
+        transition: 0.2s;
+      }
+      .toggle:after {
+        content: "";
+        display: block;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        transition: 0.2s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      }
+      .toggle.on {
+        background: var(--cyan);
+      }
+      .toggle.on:after {
+        transform: translateX(20px);
+      }
+      .field {
+        margin-bottom: 13px;
+      }
+      .field label {
+        display: block;
+        color: #627488;
+        font-size: 12px;
+        font-weight: 750;
+        margin-bottom: 5px;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0 11px;
+        background: #fff;
+        outline: 0;
+      }
+      .notice {
+        background: #fff7e8;
+        border: 1px solid #f5dfb5;
+        color: #8b611c;
+        padding: 13px;
+        border-radius: 11px;
+        font-size: 12px;
+        margin-top: 12px;
+      }
+      .empty-state {
+        text-align: center;
+        padding: 50px;
+        color: var(--muted);
+      }
+      .screen-heading {
+        margin-bottom: 18px;
+      }
+      .screen-heading h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .screen-heading p {
+        margin: 4px 0 0;
+        color: var(--muted);
+      }
+      .draft-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        background: #fff8e9;
+        border: 1px solid #f2d79e;
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        color: #79551a;
+      }
+      .draft-banner strong {
+        display: block;
+        color: #68450b;
+      }
+      .draft-banner p {
+        margin: 2px 0 0;
+        font-size: 13px;
+      }
+      .draft-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: #f4b740;
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        flex: 0 0 auto;
+      }
+      .doc-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .doc-card {
+        padding: 21px;
+      }
+      .doc-card.wide {
+        grid-column: 1/-1;
+      }
+      .doc-card h3 {
+        margin: 0 0 12px;
+        font-size: 17px;
+      }
+      .doc-card h4 {
+        margin: 17px 0 7px;
+        font-size: 14px;
+      }
+      .doc-card p {
+        margin: 0 0 10px;
+        color: #596b7d;
+      }
+      .doc-card ul,
+      .doc-card ol {
+        margin: 8px 0 0;
+        padding-left: 21px;
+        color: #526579;
+      }
+      .doc-card li {
+        margin: 7px 0;
+      }
+      .flow-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .flow-step {
+        background: #f7f9fc;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .flow-step b {
+        display: block;
+        margin-bottom: 4px;
+        color: #20466f;
+      }
+      .rule-table {
+        width: 100%;
+        min-width: 640px;
+      }
+      .rule-table td:first-child {
+        font-weight: 800;
+      }
+      .pending-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 22px;
+        padding-left: 20px;
+      }
+      .discounts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .discount {
+        border: 1px solid #ddd6ff;
+        background: #f7f5ff;
+        border-radius: 14px;
+        padding: 16px;
+      }
+      .discount strong {
+        display: block;
+        color: #5d43c5;
+        font-size: 24px;
+      }
+      .download-md {
+        text-decoration: none;
+      }
+      .customer-stage {
+        background: linear-gradient(
+          145deg,
+          #07182d 0,
+          #102d4c 48%,
+          #0d6b68 140%
+        );
+        border-radius: 24px;
+        padding: 25px;
+        min-height: 620px;
+        box-shadow: 0 22px 55px rgba(9, 26, 47, 0.18);
+      }
+      .customer-shell {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      .customer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #fff;
+        margin-bottom: 22px;
+        gap: 14px;
+      }
+      .customer-brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+      .customer-brand .brand-mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+      .customer-head small {
+        display: block;
+        color: #9fc1d6;
+      }
+      .customer-login {
+        display: grid;
+        grid-template-columns: minmax(0, 430px) minmax(300px, 1fr);
+        gap: 22px;
+        align-items: stretch;
+      }
+      .login-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 27px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+      }
+      .login-card h2 {
+        font-size: 25px;
+        margin: 0;
+      }
+      .login-card > p {
+        color: var(--muted);
+        margin: 6px 0 20px;
+      }
+      .google-btn {
+        width: 100%;
+        height: 46px;
+        border: 1px solid #d9e0e8;
+        background: #fff;
+        border-radius: 11px;
+        font-weight: 800;
+        color: #263d55;
+      }
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #92a0ae;
+        font-size: 12px;
+        margin: 18px 0;
+      }
+      .divider:before,
+      .divider:after {
+        content: "";
+        height: 1px;
+        background: #e2e8ef;
+        flex: 1;
+      }
+      .login-card .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .login-side {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 20px;
+        padding: 27px;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .login-side h3 {
+        font-size: 25px;
+        margin: 0 0 8px;
+      }
+      .login-side p {
+        color: #b9cede;
+        margin: 0 0 18px;
+      }
+      .login-side ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #d8e9f2;
+      }
+      .login-side li {
+        margin: 9px 0;
+      }
+      .customer-panel {
+        display: none;
+      }
+      .customer-panel.active {
+        display: block;
+      }
+      .customer-login.hidden {
+        display: none;
+      }
+      .customer-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .customer-welcome {
+        color: #fff;
+      }
+      .customer-welcome h2 {
+        margin: 0;
+        font-size: 24px;
+      }
+      .customer-welcome p {
+        margin: 3px 0 0;
+        color: #b6cede;
+      }
+      .plan-switch {
+        display: flex;
+        background: rgba(255, 255, 255, 0.12);
+        padding: 4px;
+        border-radius: 12px;
+      }
+      .plan-switch button {
+        border: 0;
+        background: transparent;
+        color: #bed4e3;
+        border-radius: 9px;
+        padding: 8px 12px;
+        font-weight: 800;
+      }
+      .plan-switch button.active {
+        background: #fff;
+        color: #183651;
+      }
+      .customer-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+        gap: 16px;
+      }
+      .portal-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+      .portal-card h3 {
+        margin: 0 0 4px;
+      }
+      .portal-card > p {
+        margin: 0 0 16px;
+        color: var(--muted);
+      }
+      .monitor-hero {
+        background: linear-gradient(135deg, #eef4ff, #eafbf7);
+        border: 1px solid #d7e9ec;
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      .monitor-location {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .monitor-location h3 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .monitor-location p {
+        margin: 3px 0 0;
+        color: var(--muted);
+      }
+      .monitor-result {
+        margin-top: 15px;
+        padding-top: 14px;
+        border-top: 1px solid #d6e5e7;
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        font-size: 13px;
+      }
+      .location-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 10px;
+        align-items: end;
+      }
+      .location-form .field {
+        margin: 0;
+      }
+      .location-form .btn {
+        height: 42px;
+      }
+      .channel-option {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        border-top: 1px solid var(--line);
+      }
+      .channel-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-weight: 900;
+      }
+      .channel-option p {
+        margin: 1px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .channel-requirement {
+        background: #f7f9fc;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 13px;
+        margin-top: 6px;
+      }
+      .channel-requirement .field:last-child {
+        margin-bottom: 0;
+      }
+      .phone-prefix {
+        display: flex;
+      }
+      .phone-prefix span {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        padding: 0 11px;
+        background: #edf2f7;
+        border: 1px solid var(--line);
+        border-right: 0;
+        border-radius: 10px 0 0 10px;
+        color: #4f6275;
+        font-weight: 800;
+      }
+      .phone-prefix input {
+        border-radius: 0 10px 10px 0;
+      }
+      .upgrade-card {
+        background: linear-gradient(135deg, #6944e6, #296df6);
+        color: #fff;
+        border-radius: 18px;
+        padding: 21px;
+        box-shadow: 0 14px 30px rgba(76, 76, 220, 0.25);
+      }
+      .upgrade-card h3 {
+        font-size: 21px;
+        margin: 0;
+      }
+      .upgrade-card p {
+        color: #dcdcff;
+        margin: 7px 0 15px;
+      }
+      .upgrade-card .btn {
+        background: linear-gradient(
+          105deg,
+          #ff1744 0%,
+          #ff5b00 45%,
+          #ffd600 100%
+        );
+        color: #fff;
+        border: 2px solid rgba(255, 255, 255, 0.75);
+        width: 100%;
+        justify-content: center;
+        text-shadow: 0 1px 2px rgba(82, 20, 0, 0.45);
+        box-shadow: 0 10px 28px rgba(255, 58, 0, 0.48);
+        animation:
+          vipShake 4s ease-in-out infinite,
+          vipGlow 1.2s ease-in-out infinite alternate;
+        will-change: transform, box-shadow;
+      }
+      .upgrade-card .btn:hover,
+      .mobile-upgrade .btn:hover {
+        filter: saturate(1.2) brightness(1.06);
+      }
+      @keyframes vipShake {
+        0%,
+        72%,
+        84%,
+        100% {
+          transform: translateX(0) rotate(0);
+        }
+        74% {
+          transform: translateX(-4px) rotate(-1deg);
+        }
+        76% {
+          transform: translateX(5px) rotate(1deg);
+        }
+        78% {
+          transform: translateX(-5px) rotate(-1deg);
+        }
+        80% {
+          transform: translateX(4px) rotate(1deg);
+        }
+        82% {
+          transform: translateX(-2px) rotate(0);
+        }
+      }
+      @keyframes vipGlow {
+        from {
+          box-shadow: 0 9px 22px rgba(255, 23, 68, 0.42);
+        }
+        to {
+          box-shadow: 0 12px 34px rgba(255, 170, 0, 0.72);
+        }
+      }
+      .latest-message {
+        margin-top: 16px;
+      }
+      .message-box {
+        background: #f1f7ff;
+        border-left: 4px solid #299bd7;
+        border-radius: 12px;
+        padding: 14px;
+        color: #455a70;
+        font-size: 13px;
+      }
+      .message-box a {
+        color: var(--blue);
+        font-weight: 800;
+      }
+      .us-number-note {
+        display: flex;
+        gap: 10px;
+        background: #fff7e8;
+        border: 1px solid #f2d79e;
+        color: #765216;
+        border-radius: 12px;
+        padding: 13px;
+        margin-top: 10px;
+        font-size: 13px;
+      }
+      .save-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .demo-label {
+        font-size: 12px;
+        color: #8ea6b9;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 99px;
+        padding: 6px 9px;
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 18, 32, 0.52);
+        z-index: 80;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal.open {
+        display: flex;
+      }
+      .modal-card {
+        width: min(520px, 100%);
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 24px 70px rgba(3, 20, 38, 0.3);
+      }
+      .modal-head {
+        padding: 20px 22px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+      }
+      .modal-head h3 {
+        margin: 0;
+      }
+      .modal-body {
+        padding: 21px;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        padding-top: 8px;
+      }
+      .toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        background: #102844;
+        color: #fff;
+        border-radius: 13px;
+        padding: 13px 17px;
+        box-shadow: 0 12px 30px rgba(9, 26, 47, 0.3);
+        transform: translateY(30px);
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.25s;
+        z-index: 100;
+      }
+      .toast.show {
+        transform: none;
+        opacity: 1;
+      }
+      .mobile-menu {
+        display: none;
+      }
+      .cycle-hero {
+        background: linear-gradient(135deg, #102844, #176c78);
+        color: #fff;
+        border-radius: 20px;
+        padding: 22px;
+        margin-bottom: 18px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: center;
+      }
+      .cycle-hero h2 {
+        margin: 4px 0 5px;
+        font-size: 26px;
+      }
+      .cycle-hero p {
+        margin: 0;
+        color: #c6dfe8;
+      }
+      .cycle-count {
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 16px;
+        padding: 16px 20px;
+        text-align: center;
+      }
+      .cycle-count strong {
+        display: block;
+        font-size: 27px;
+      }
+      .cycle-count span {
+        font-size: 12px;
+        color: #c6dfe8;
+      }
+      .phase-line {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .phase {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        position: relative;
+      }
+      .phase.active {
+        border-color: #2b76f6;
+        box-shadow: 0 8px 20px rgba(35, 103, 245, 0.12);
+      }
+      .phase b {
+        display: block;
+        font-size: 13px;
+      }
+      .phase small {
+        color: var(--muted);
+      }
+      .phase .phase-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #cdd6df;
+        margin-bottom: 8px;
+      }
+      .phase.active .phase-dot {
+        background: var(--blue);
+        box-shadow: 0 0 0 5px #e8efff;
+      }
+      .cycle-actions {
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+      }
+      .cycle-preview {
+        background: #f2f7ff;
+        border: 1px solid #dbe8fb;
+        border-radius: 13px;
+        padding: 14px;
+        color: #465e77;
+        font-size: 13px;
+      }
+      .portal-tabs {
+        display: flex;
+        gap: 7px;
+        overflow: auto;
+        margin: 0 0 16px;
+        padding-bottom: 2px;
+      }
+      .portal-tabs button {
+        min-height: 42px;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #d1e3ed;
+        border-radius: 11px;
+        padding: 9px 13px;
+        font-weight: 800;
+      }
+      .portal-tabs button.active {
+        background: #fff;
+        color: #173652;
+      }
+      .prep-card {
+        background: linear-gradient(135deg, #fff9e8, #edf7ff);
+        border: 1px solid #eadcad;
+        border-radius: 16px;
+        padding: 17px;
+        margin-bottom: 16px;
+      }
+      .prep-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .prep-top h3 {
+        font-size: 20px;
+        margin: 2px 0;
+      }
+      .count-badge {
+        background: #132c48;
+        color: #fff;
+        border-radius: 12px;
+        padding: 9px 12px;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .count-badge strong {
+        font-size: 20px;
+        display: block;
+        line-height: 1;
+      }
+      .count-badge span {
+        font-size: 10px;
+        color: #bad0df;
+      }
+      .unknown-reading {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e8ddbc;
+        color: #53697d;
+        font-size: 13px;
+      }
+      .unknown-reading b {
+        color: #8c6418;
+      }
+      .quick-links {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .quick-links .btn {
+        min-height: 42px;
+      }
+      .guide-list {
+        display: grid;
+        gap: 9px;
+        margin: 13px 0;
+      }
+      .guide-item {
+        display: grid;
+        grid-template-columns: 31px 1fr;
+        gap: 10px;
+        align-items: start;
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px;
+      }
+      .guide-item b {
+        display: grid;
+        place-items: center;
+        width: 29px;
+        height: 29px;
+        border-radius: 9px;
+        background: #e9f0ff;
+        color: var(--blue);
+      }
+      .guide-item strong {
+        display: block;
+      }
+      .guide-item span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .video-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .video-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .video-placeholder {
+        aspect-ratio: 16/9;
+        background: linear-gradient(145deg, #102844, #244c70);
+        display: grid;
+        place-items: center;
+        color: #fff;
+        text-align: center;
+        padding: 16px;
+      }
+      .play-button {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        border: 0;
+        background: #ff3548;
+        color: #fff;
+        font-size: 20px;
+        margin: auto;
+      }
+      .video-body {
+        padding: 13px;
+      }
+      .video-body strong {
+        display: block;
+      }
+      .video-body p {
+        margin: 4px 0 11px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .share-card {
+        background: linear-gradient(135deg, #eafbf7, #edf3ff);
+        border: 1px solid #cde9e3;
+      }
+      .share-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .feedback-card {
+        display: none;
+      }
+      .feedback-card.visible {
+        display: block;
+      }
+      .choice-row {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+      }
+      .choice-row button {
+        flex: 1;
+        min-height: 44px;
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 11px;
+        font-weight: 800;
+      }
+      .choice-row button.selected {
+        background: #eaf0ff;
+        border-color: #83a7f7;
+        color: #1f5ad2;
+      }
+      .feedback-card textarea {
+        width: 100%;
+        min-height: 90px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        padding: 11px;
+        font: inherit;
+      }
+      .discount-reveal {
+        display: none;
+        background: #f7f3ff;
+        border: 1px solid #ded3ff;
+        border-radius: 13px;
+        padding: 14px;
+        margin-top: 12px;
+      }
+      .discount-reveal.visible {
+        display: block;
+      }
+      .discount-reveal strong {
+        color: #6146cb;
+        font-size: 19px;
+      }
+      .source-note {
+        font-size: 11px;
+        color: #73869a;
+        margin-top: 11px;
+      }
+      .source-note a {
+        color: var(--blue);
+      }
+      .mobile-upgrade {
+        display: none;
+      }
+      .section-anchor {
+        scroll-margin-top: 92px;
+      }
+      @media (max-width: 1100px) {
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .grid-main,
+        .calls-grid {
+          grid-template-columns: 1fr;
+        }
+        .activity {
+          grid-template-columns: 1fr;
+        }
+        .kanban {
+          grid-template-columns: 1fr;
+        }
+        .settings-grid,
+        .doc-grid,
+        .customer-login,
+        .customer-grid {
+          grid-template-columns: 1fr;
+        }
+        .doc-card.wide {
+          grid-column: auto;
+        }
+        .flow-row {
+          grid-template-columns: 1fr;
+        }
+        .pending-list {
+          grid-template-columns: 1fr;
+        }
+        .phase-line {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (max-width: 760px) {
+        .app {
+          display: block;
+        }
+        .sidebar {
+          transform: translateX(-100%);
+          transition: 0.25s;
+        }
+        .sidebar.open {
+          transform: none;
+        }
+        .main {
+          display: block;
+        }
+        .topbar {
+          height: 69px;
+          padding: 0 16px;
+        }
+        .mobile-menu {
+          display: grid;
+        }
+        .page-title p,
+        .live-chip {
+          display: none;
+        }
+        .content {
+          padding: 18px 14px 92px;
+        }
+        .stats {
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .stat {
+          padding: 14px;
+        }
+        .stat-value {
+          font-size: 23px;
+        }
+        .action-row {
+          align-items: flex-start;
+        }
+        .period {
+          display: none;
+        }
+        .status-banner {
+          grid-template-columns: auto 1fr;
+        }
+        .next-check {
+          grid-column: 2;
+          text-align: left;
+        }
+        .location {
+          grid-template-columns: 1fr auto;
+        }
+        .location > :nth-child(2),
+        .location > :nth-child(3) {
+          display: none;
+        }
+        .toolbar {
+          flex-wrap: wrap;
+        }
+        .toolbar .select {
+          flex: 1;
+        }
+        .settings-grid {
+          grid-template-columns: 1fr;
+        }
+        .customer-stage {
+          padding: 14px;
+          margin: 0 -5px;
+          border-radius: 19px;
+        }
+        .customer-head,
+        .customer-toolbar,
+        .monitor-result,
+        .save-line,
+        .prep-top {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .location-form {
+          grid-template-columns: 1fr;
+        }
+        .location-form .btn {
+          width: 100%;
+          justify-content: center;
+        }
+        .plan-switch {
+          width: 100%;
+        }
+        .plan-switch button {
+          flex: 1;
+          min-height: 44px;
+        }
+        .channel-option {
+          grid-template-columns: auto 1fr;
+        }
+        .channel-option .toggle {
+          grid-column: 2;
+        }
+        .customer-login {
+          grid-template-columns: 1fr;
+        }
+        .login-card,
+        .login-side,
+        .portal-card {
+          padding: 17px;
+        }
+        .video-grid {
+          grid-template-columns: 1fr;
+        }
+        .phase-line {
+          grid-template-columns: 1fr 1fr;
+        }
+        .cycle-hero {
+          grid-template-columns: 1fr;
+        }
+        .cycle-count {
+          text-align: left;
+        }
+        .mobile-upgrade {
+          display: block;
+          position: fixed;
+          z-index: 18;
+          left: 14px;
+          right: 14px;
+          bottom: 12px;
+        }
+        .mobile-upgrade .btn {
+          width: 100%;
+          justify-content: center;
+          background: linear-gradient(
+            105deg,
+            #ff1744 0%,
+            #ff5b00 45%,
+            #ffd600 100%
+          );
+          color: #fff;
+          border: 2px solid rgba(255, 255, 255, 0.8);
+          text-shadow: 0 1px 2px rgba(82, 20, 0, 0.45);
+          box-shadow: 0 10px 30px rgba(255, 58, 0, 0.58);
+          animation:
+            vipShake 4s ease-in-out infinite,
+            vipGlow 1.2s ease-in-out infinite alternate;
+          min-height: 48px;
+        }
+        .mobile-upgrade.hidden {
+          display: none;
+        }
+        .share-buttons .btn,
+        .quick-links .btn {
+          flex: 1;
+          justify-content: center;
+        }
+        .count-badge {
+          width: 100%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .upgrade-card .btn,
+        .mobile-upgrade .btn {
+          animation: none;
+        }
+      }
+      @media (max-width: 430px) {
+        .stats {
+          grid-template-columns: 1fr;
+        }
+        .top-actions .avatar {
+          display: none;
+        }
+        .action-row {
+          flex-direction: column;
+        }
+        .action-row .btn {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    
+      .nav-ext{display:block;text-decoration:none;color:#9fb3c8;border-radius:11px;padding:11px 12px;display:flex;align-items:center;gap:11px;}
+      .nav-ext:hover{background:#102b49;color:#fff;}
+      /* --- Login gate (no existía en la maqueta; necesario para el acceso real) --- */
+      #login{max-width:340px;margin:100px auto;text-align:center;padding:0 20px;}
+      #login h1{font-size:22px;margin-bottom:4px;}
+      #login input{width:100%;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 13px;margin:14px 0 8px;}
+      #login button{width:100%;height:44px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:700;}
+      .oculto{display:none !important;}
+    </style>
+  </head>
+  <body>
+<div id="login">
+  <h1>Panel admin</h1>
+  <p style="color:#718096;font-size:13px;">Monitor JCF — acceso restringido</p>
+  <input id="inpPass" type="password" placeholder="Contraseña">
+  <button id="btnEntrar">Entrar</button>
+  <div style="color:#c33f4b;font-size:12.5px;margin-top:9px;min-height:15px;" id="loginMsg"></div>
+</div>
+
+<div id="appWrap" class="oculto">
+    <div class="app">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path
+                d="M3 17h5l3-8 6 16 4-11 3 3h5"
+                stroke="white"
+                stroke-width="2.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <div><strong>JCF Monitor</strong><small>Control 24/7</small></div>
+        </div>
+        <div class="nav-label">Operación</div>
+        <nav class="nav">
+          <button
+            class="nav-btn active"
+            data-screen="dashboard"
+            data-title="Resumen general"
+            data-subtitle="Operación en tiempo real"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"
+                stroke-width="1.8"
+                stroke="currentColor"
+              /></svg
+            >Resumen
+          </button>
+          <button
+            class="nav-btn"
+            data-screen="monitors"
+            data-title="Monitoreos"
+            data-subtitle="Estados y municipios en seguimiento"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8" />
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
+              <path d="M12 2v3m0 14v3M2 12h3m14 0h3" stroke="currentColor" stroke-width="1.8" /></svg
+            >Monitoreos
+          </button>
+          <button
+            class="nav-btn"
+            data-screen="users"
+            data-title="Usuarios"
+            data-subtitle="Pruebas gratuitas y suscripciones VIP"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7-1 2 2 4-4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              /></svg
+            >Usuarios
+          </button>
+          <button
+            class="nav-btn"
+            data-screen="alerts"
+            data-title="Centro de alertas"
+            data-subtitle="Historial de avisos y entregas"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              /></svg
+            >Alertas
+          </button>
+          <button
+            class="nav-btn"
+            data-screen="calls"
+            data-title="Llamadas automáticas"
+            data-subtitle="Alertas de voz para aperturas VIP"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2.1Z"
+                stroke="currentColor"
+                stroke-width="1.8"
+              /></svg
+            >Llamadas
+          </button>
+        </nav>
+        <div class="nav-label" style="margin-top: 22px">Negocio</div>
+        <nav class="nav">
+          <button
+            class="nav-btn"
+            data-screen="payments"
+            data-title="Pagos y suscripciones"
+            data-subtitle="Ingresos y renovaciones"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.8" />
+              <path d="M2 10h20M6 15h4" stroke="currentColor" stroke-width="1.8" /></svg
+            >Pagos
+          </button>
+          <button
+            class="nav-btn"
+            data-screen="referrals"
+            data-title="Referidos"
+            data-subtitle="Invitaciones y conversiones"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-3h6m-3-3v6"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              /></svg
+            >Referidos
+          </button>
+          <button
+            class="nav-btn"
+            data-screen="cycles"
+            data-title="Ciclos y fechas"
+            data-subtitle="Preparación, apertura y encuesta"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8" />
+              <path
+                d="M7 3v4M17 3v4M3 10h18M8 14h3M8 17h7"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              /></svg
+            >Ciclos y fechas
+          </button>
+          <button
+            class="nav-btn"
+            data-screen="settings"
+            data-title="Configuración"
+            data-subtitle="Reglas e integraciones"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"
+                stroke="currentColor"
+                stroke-width="1.5"
+              /></svg
+            >Configuración
+          </button>
+        </nav>
+        <div class="nav-label" style="margin-top: 22px">Cliente</div>
+        <nav class="nav">
+          <a class="nav-ext" href="/" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+              <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8" />
+              <path d="M4 21a8 8 0 0 1 16 0M17 11l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            ↗ Ver portal del cliente
+          </a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="system-mini">
+            <strong><span class="pulse"></span>Sistema operativo</strong>
+            <div class="system-mini-row"><span>Última consulta</span><span id="sysUltimaConsulta">—</span></div>
+            <div class="system-mini-row"><span>Suscriptores activos</span><span id="sysActivos">—</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <button class="icon-btn mobile-menu" id="menuBtn" aria-label="Abrir menú">☰</button>
+            <div class="page-title">
+              <h1 id="topTitle">Resumen general</h1>
+              <p id="topSubtitle">Operación en tiempo real</p>
+            </div>
+          </div>
+          <div class="top-actions">
+            <div class="live-chip"><span class="pulse"></span>Monitoreo activo</div>
+            <button class="btn btn-outline" id="btnCerrarSesion" style="height:40px;">Cerrar sesión</button>
+          </div>
+        </header>
+        <div class="content">
+          <div class="draft-banner">
+            <div class="draft-icon">!</div>
+            <div>
+              <strong>Datos reales conectados a Supabase</strong>
+              <p>Cualquier acción aquí (guardar, probar, activar) afecta al sistema en producción.</p>
+            </div>
+          </div>
+          <section class="screen active" id="dashboard">
+            <div class="stats" id="statsGrid"></div>
+            <div class="grid-main">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>Estado del monitoreo</h2>
+                    <p>Información pública procesada en tiempo real</p>
+                  </div>
+                  <button class="link-btn" data-go="monitors">Ver todos</button>
+                </div>
+                <div class="map-list" id="mapList"></div>
+              </article>
+              <article class="card health">
+                <div class="card-head" style="padding: 0 0 15px; border: 0">
+                  <div>
+                    <h2>Distribución de planes</h2>
+                    <p>Usuarios con vigencia activa</p>
+                  </div>
+                </div>
+                <div class="health-ring" id="healthRing" style="background: conic-gradient(var(--cyan) 0 0%, #e7edf3 0%);">
+                  <div><strong id="healthTotal">0</strong><span>usuarios</span></div>
+                </div>
+                <div class="legend">
+                  <div class="legend-row"><span>Prueba gratuita</span><strong id="legendFree">0 · 0%</strong></div>
+                  <div class="legend-row"><span>Plan VIP</span><strong id="legendVip">0 · 0%</strong></div>
+                  <div class="legend-row"><span>Nuevos esta semana</span><strong id="legendNuevos">0</strong></div>
+                </div>
+              </article>
+            </div>
+            <div class="activity">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>Actividad reciente</h2>
+                    <p>Cambios detectados en tiempo real</p>
+                  </div>
+                  <button class="link-btn" data-go="alerts">Ver todas</button>
+                </div>
+                <div class="timeline" id="timelineList"></div>
+              </article>
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>Conversiones a VIP</h2>
+                    <p>Últimos 7 días</p>
+                  </div>
+                </div>
+                <div class="conversion">
+                  <div class="bars" id="barsChart"></div>
+                  <div class="conversion-foot" id="conversionFoot"></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="screen" id="monitors">
+            <div class="action-row">
+              <div class="screen-heading">
+                <h2>Monitoreos activos</h2>
+                <p>Una consulta por municipio distribuye el resultado a todos sus usuarios.</p>
+              </div>
+              <button class="btn btn-outline" data-check>↻ Revisar ahora</button>
+            </div>
+            <article class="card table-card">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Ubicación</th><th>Resultado</th><th>Suscriptores</th><th>Frecuencia</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablaMonitoreos"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <section class="screen" id="users">
+            <div class="action-row">
+              <div class="screen-heading">
+                <h2>Usuarios registrados</h2>
+                <p>Administra vigencias, planes y canales de contacto.</p>
+              </div>
+            </div>
+            <div class="toolbar">
+              <div class="tabs" id="userTabs">
+                <button class="tab-btn active" data-plan-tab="todos">Todos</button
+                ><button class="tab-btn" data-plan-tab="free">Gratis</button
+                ><button class="tab-btn" data-plan-tab="vip">VIP</button>
+              </div>
+              <div class="search"><input id="userSearch" placeholder="Buscar por correo o municipio" /></div>
+            </div>
+            <article class="card table-card">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Usuario</th><th>Plan</th><th>Municipio</th><th>Canales</th><th>Alta</th><th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablaUsuarios"></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="card" style="margin-top:18px;">
+              <div class="card-head">
+                <div><h2>Pruebas de Telegram</h2><p>Consulta en vivo el estado real y manda una alerta de prueba.</p></div>
+              </div>
+              <div style="padding:0 20px 20px;">
+                <button class="btn btn-primary" id="btnTestTodos">Probar a todos los suscriptores</button>
+                <div class="fila" style="display:flex;gap:12px;margin-top:14px;">
+                  <div class="field" style="flex:1;"><label>Estado</label><select id="testEstado" disabled><option>Cargando…</option></select></div>
+                  <div class="field" style="flex:1;"><label>Municipio</label><select id="testMunicipio" disabled><option>Elige primero el estado</option></select></div>
+                </div>
+                <button class="btn btn-outline" id="btnTestMunicipio">Probar solo este estado/municipio</button>
+                <div class="msg" id="testMsg" style="font-size:12.5px;color:var(--muted);margin-top:9px;"></div>
+              </div>
+            </article>
+          </section>
+
+          <section class="screen" id="alerts">
+            <div class="action-row">
+              <div class="screen-heading">
+                <h2>Centro de alertas</h2>
+                <p>Cambios detectados en tiempo real, ordenados por fecha.</p>
+              </div>
+              <button class="btn btn-outline" id="btnExportarAlertas">⇩ Exportar registro</button>
+            </div>
+            <div class="kanban">
+              <div class="kanban-col">
+                <div class="kanban-title">Aperturas <span id="kAperturas">0</span></div>
+                <div id="colAperturas"></div>
+              </div>
+              <div class="kanban-col">
+                <div class="kanban-title">Metas alcanzadas <span id="kMetas">0</span></div>
+                <div id="colMetas"></div>
+              </div>
+              <div class="kanban-col">
+                <div class="kanban-title">Requieren atención <span id="kPendientes">0</span></div>
+                <article class="alert-card">
+                  <div class="alert-top"><span class="status-pill error">Pendiente</span></div>
+                  <p id="pendientesTexto">—</p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" id="calls">
+            <div class="action-row">
+              <div class="screen-heading">
+                <h2>Alertas mediante llamada</h2>
+                <p>Un aviso corto por Talkyria, solo para suscriptores VIP con llamada activada.</p>
+              </div>
+            </div>
+            <div class="talkyria-warn" style="background:#fff0ea;border:1px solid #f6c4a8;color:#8a3c1c;border-radius:11px;padding:11px 13px;font-size:12px;margin-bottom:18px;">
+              Conexión con Talkyria construida contra su documentación real. Si no ves llamadas aquí, confirma que <code>TALKYRIA_AGENT_ID</code> esté configurado en Netlify.
+            </div>
+            <article class="card voice-box" style="margin-bottom:18px;">
+              <div class="card-head" style="padding: 0; border: 0">
+                <div><h2>Guion del aviso</h2><p>Se lee una vez y cuelga — no es conversacional.</p></div>
+              </div>
+              <div class="script" style="margin-top:14px;">
+                "Aviso automático de Monitor JCF. El registro para <strong>[municipio], [estado]</strong> ya está abierto. Entra ahora a la plataforma oficial para intentar registrarte. Muchas gracias por su atención. Este es un servicio de avisos automatizados, puede colgar ahora."
+              </div>
+            </article>
+            <article class="card table-card">
+              <div class="card-head">
+                <div><h2>Historial de llamadas</h2><p>Una llamada por suscriptor, municipio y evento de apertura (anti-duplicado).</p></div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Usuario</th><th>Municipio</th><th>Resultado</th><th>Resumen</th><th>Fecha y hora</th></tr></thead>
+                  <tbody id="tablaLlamadas"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <section class="screen" id="payments">
+            <div class="action-row">
+              <div class="screen-heading">
+                <h2>Pagos y suscripciones</h2>
+                <p>Periodo VIP de 14 días — $100 MXN por ciclo, con descuento de continuidad si no hubo éxito.</p>
+              </div>
+              <button class="btn btn-outline" id="btnExportarPagos">⇩ Descargar reporte</button>
+            </div>
+            <div class="stats" id="pagosStats"></div>
+            <article class="card table-card">
+              <div class="card-head">
+                <div><h2>Movimientos recientes</h2><p>Activación automática después del pago; ciclo y descuento por continuidad.</p></div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Cliente</th><th>Municipio</th><th>Importe</th><th>Ciclo</th><th>Descuento</th><th>Inicio</th><th>Finaliza</th></tr></thead>
+                  <tbody id="tablaPagos"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <section class="screen" id="referrals">
+            <div class="action-row">
+              <div class="screen-heading">
+                <h2>Programa de referidos</h2>
+                <p>Cada usuario recibe un enlace personal para invitar amigos.</p>
+              </div>
+            </div>
+            <div class="stats" id="referidosStats"></div>
+            <article class="card table-card">
+              <div class="card-head">
+                <div><h2>Rendimiento por usuario</h2><p>Invitaciones vinculadas mediante código personal</p></div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Usuario</th><th>Código</th><th>Clics</th><th>Registros</th><th>VIP</th><th>Conversión</th></tr></thead>
+                  <tbody id="tablaReferidos"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <section class="screen" id="cycles">
+            <div class="screen-heading">
+              <h2>Ciclos, preparación y apertura</h2>
+              <p>Controla desde aquí las fechas que cambian los mensajes y el nivel de monitoreo.</p>
+            </div>
+            <div class="cycle-hero">
+              <div>
+                <span class="plan-pill plan-vip" id="cycleBadge">Ciclo actual</span>
+                <h2 id="adminPhaseTitle">Cargando…</h2>
+                <p id="adminPhaseText"></p>
+              </div>
+              <div class="cycle-count">
+                <strong id="adminCountdown">—</strong><span id="adminCountdownLabel"></span>
+              </div>
+            </div>
+            <div class="phase-line" id="phaseLine">
+              <div class="phase" data-phase="prep"><div class="phase-dot"></div><b>Preparación</b><small>antes del inicio</small></div>
+              <div class="phase" data-phase="active"><div class="phase-dot"></div><b>Ventana activa</b><small>periodo abierto</small></div>
+              <div class="phase" data-phase="survey"><div class="phase-dot"></div><b>Encuesta</b><small>al terminar</small></div>
+              <div class="phase" data-phase="wait"><div class="phase-dot"></div><b>Espera</b><small>siguiente ciclo</small></div>
+            </div>
+            <div class="settings-grid">
+              <article class="card setting-card">
+                <h3>Fechas del ciclo</h3>
+                <p>Controlan cuándo el cron nacional empieza y para de monitorear.</p>
+                <div class="field"><label>Registro abierto a nuevos usuarios</label
+                  ><select id="cfgRegistro"><option value="true">Sí, abierto</option><option value="false">No, cerrado</option></select>
+                </div>
+                <div class="field"><label>Inicio del periodo de monitoreo</label><input type="date" id="cfgInicio" /></div>
+                <div class="field"><label>Fin del periodo de monitoreo</label><input type="date" id="cfgFin" /></div>
+                <div class="field"><label>Fecha de encuesta VIP</label><input type="date" id="cfgEncuesta" /></div>
+                <div class="field"><label>Siguiente ciclo estimado</label><input type="date" id="cfgSiguienteCiclo" /></div>
+                <button class="btn btn-primary" id="btnGuardarCiclos">Guardar calendario</button>
+                <div class="msg" id="ciclosMsg" style="font-size:12.5px;color:var(--muted);margin-top:9px;"></div>
+              </article>
+              <article class="card setting-card">
+                <h3>Simular fase y revisar mensajes</h3>
+                <p>Comprueba lo que recibirán las cuentas antes de publicar un cambio.</p>
+                <div class="cycle-actions">
+                  <button class="btn btn-primary" data-cycle-phase="prep">Preparación</button
+                  ><button class="btn btn-outline" data-cycle-phase="active">Ventana activa</button
+                  ><button class="btn btn-outline" data-cycle-phase="survey">Encuesta final</button>
+                </div>
+                <div class="cycle-preview" id="cyclePreview" style="margin-top: 14px"></div>
+                <div class="integration">
+                  <div><strong>Mostrar lectura real en preparación</strong><small>Si no existe dato, presenta "sin datos / desconocido".</small></div>
+                  <button class="toggle" id="tgLectura"></button>
+                </div>
+                <div class="integration">
+                  <div><strong>Incluir guía de documentos</strong><small>Panel, correo de alta y mensaje de Telegram.</small></div>
+                  <button class="toggle" id="tgGuia"></button>
+                </div>
+                <div class="integration">
+                  <div><strong>Enviar encuesta al finalizar</strong><small>Solo VIP; resultado, comentario y continuidad.</small></div>
+                  <button class="toggle" id="tgEncuesta"></button>
+                </div>
+              </article>
+              <article class="card setting-card">
+                <h3>Tutoriales del panel</h3>
+                <p>Dos videos visibles dentro del perfil del cliente, con salida opcional a YouTube.</p>
+                <div class="field"><label>Video 1 · Configura Telegram y tus alertas</label><input id="cfgVideo1" placeholder="URL de YouTube" /></div>
+                <div class="field"><label>Video 2 · Cambia municipio y usa tu panel</label><input id="cfgVideo2" placeholder="URL de YouTube" /></div>
+                <button class="btn btn-primary" id="btnGuardarVideos">Guardar videos</button>
+                <div class="msg" id="videosMsg" style="font-size:12.5px;color:var(--muted);margin-top:9px;"></div>
+                <div class="notice">Los reproductores quedan marcados como pendientes hasta que agregues las dos URLs reales.</div>
+              </article>
+              <article class="card setting-card">
+                <h3>Encuesta VIP y continuidad</h3>
+                <p>Al terminar la ventana, se pregunta si encontró un lugar y se registra su experiencia.</p>
+                <div class="discounts">
+                  <div class="discount"><strong>50 %</strong><span>Segundo ciclo si el primer VIP no tuvo éxito.</span></div>
+                  <div class="discount"><strong>70 %</strong><span>Tercer ciclo si tampoco tuvo éxito en el segundo.</span></div>
+                </div>
+                <div class="notice">Regla fija del sistema — no editable desde aquí todavía.</div>
+              </article>
+            </div>
+          </section>
+
+          <section class="screen" id="settings">
+            <div class="screen-heading">
+              <h2>Configuración del sistema</h2>
+              <p>Reglas fijas de alertamiento — informativas, no editables desde aquí.</p>
+            </div>
+            <div class="settings-grid">
+              <article class="card setting-card">
+                <h3>Integraciones</h3>
+                <p>Servicios que entregan las alertas.</p>
+                <div class="integration">
+                  <div class="integration-logo tg">✈</div>
+                  <div><strong>Telegram Bot</strong><small>Canal principal de resultados</small></div>
+                </div>
+                <div class="integration">
+                  <div class="integration-logo tk">T</div>
+                  <div><strong>Talkyria</strong><small>Llamada única cuando abre un municipio VIP</small></div>
+                </div>
+                <div class="integration">
+                  <div class="integration-logo mail">✉</div>
+                  <div><strong>Resend (correo)</strong><small>Altas Gratis/VIP y avisos de apertura VIP</small></div>
+                </div>
+              </article>
+              <article class="card setting-card">
+                <h3>Reglas de los planes</h3>
+                <p>Intervalos fijos del programador de revisiones.</p>
+                <div class="field"><label>Frecuencia del plan Gratis</label><input value="Cada 2 horas" readonly /></div>
+                <div class="field"><label>Frecuencia del plan VIP</label><input value="Cada 10 minutos (más un chequeo rápido cada 5)" readonly /></div>
+                <div class="field"><label>Precio VIP</label><input value="$100 MXN · 14 días" readonly /></div>
+                <div class="notice">Estas reglas están fijas en el código — cambiarlas requiere ajustar las funciones, no solo este panel.</div>
+              </article>
+              <article class="card setting-card">
+                <h3>Regla de llamada</h3>
+                <p>Talkyria solamente se activa en una apertura nueva para usuarios VIP.</p>
+                <div class="field"><label>Transición autorizada</label><input value="Cerrado o meta alcanzada → Abierto" readonly /></div>
+                <div class="field"><label>Máximo de llamadas por apertura y usuario</label><input value="1" readonly /></div>
+                <div class="notice">La llave usuario + municipio + evento de apertura impide llamadas duplicadas (doble protección: la nuestra y la de Talkyria).</div>
+              </article>
+              <article class="card setting-card">
+                <h3>Correo de registro y activación</h3>
+                <p>El correo no se usa para reportes periódicos.</p>
+                <div class="script">
+                  Confirma el alta Gratis o VIP, incluye el enlace para instalar Telegram si hace falta y el enlace directo para iniciar el bot. En VIP también confirma el pago y refuerza el aviso cuando el municipio abre.
+                </div>
+              </article>
+              <article class="card setting-card">
+                <h3>Beneficios por ciclo sin éxito</h3>
+                <p>Descuentos de continuidad ligados al historial del usuario.</p>
+                <div class="discounts">
+                  <div class="discount"><strong>50 %</strong><span>Segundo ciclo de registros</span></div>
+                  <div class="discount"><strong>70 %</strong><span>Tercer ciclo de registros</span></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+</div>
+<div class="toast" id="toast">Acción completada</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let PASS = '';
+let CATALOGO = { estados: [], municipios: [] };
+
+async function api(action, method = 'GET', body = null) {
+  const resp = await fetch(`/.netlify/functions/admin-api?action=${action}`, {
+    method,
+    headers: { 'x-admin-password': PASS, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+}
+
+function money(n){ return '$' + (Number(n)||0).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fecha(s){ return s ? new Date(s).toLocaleDateString('es-MX') : '—'; }
+function horaCorta(s){ return s ? new Date(s).toLocaleTimeString('es-MX', {hour:'numeric', minute:'2-digit'}) : '—'; }
+function notify(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function descargarCSV(nombre, filas, columnas){
+  const encabezado = columnas.map(c => c.titulo).join(',');
+  const cuerpo = filas.map(f => columnas.map(c => `"${(f[c.campo] ?? '').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([encabezado + '\n' + cuerpo], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = nombre; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// --- Login ------------------------------------------------------------------
+$('btnEntrar').addEventListener('click', async () => {
+  PASS = $('inpPass').value;
+  try {
+    await api('config');
+    sessionStorage.setItem('jcf_admin_pass', PASS);
+    $('login').classList.add('oculto');
+    $('appWrap').classList.remove('oculto');
+    arrancar();
+  } catch { $('loginMsg').textContent = 'Contraseña incorrecta.'; }
+});
+$('btnCerrarSesion').addEventListener('click', () => { sessionStorage.removeItem('jcf_admin_pass'); location.reload(); });
+
+const guardada = sessionStorage.getItem('jcf_admin_pass');
+if (guardada) {
+  PASS = guardada;
+  api('config').then(() => {
+    $('login').classList.add('oculto');
+    $('appWrap').classList.remove('oculto');
+    arrancar();
+  }).catch(() => sessionStorage.removeItem('jcf_admin_pass'));
+}
+
+function arrancar(){
+  cargarCatalogoAdmin();
+  document.querySelectorAll('.toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
+  showScreen('dashboard');
+}
+
+// --- Navegación --------------------------------------------------------------
+const CARGADORES = {
+  dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios,
+  alerts: cargarAlertas, calls: cargarLlamadas, payments: cargarPagos,
+  referrals: cargarReferidos, cycles: cargarCiclos
+};
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  const btn = document.querySelector(`[data-screen="${id}"]`);
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) { btn.classList.add('active'); $('topTitle').textContent = btn.dataset.title; $('topSubtitle').textContent = btn.dataset.subtitle; }
+  sidebar.classList.remove('open');
+  if (CARGADORES[id]) CARGADORES[id]().catch(err => notify('Error: ' + err.message));
+}
+const sidebar = $('sidebar');
+document.querySelectorAll('[data-screen]').forEach(b => b.addEventListener('click', () => showScreen(b.dataset.screen)));
+document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => showScreen(b.dataset.go)));
+$('menuBtn').addEventListener('click', () => sidebar.classList.toggle('open'));
+
+// --- Catálogo (para el selector de pruebas) -----------------------------------
+async function cargarCatalogoAdmin() {
+  try {
+    const resp = await fetch('/.netlify/functions/get-catalogo');
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error);
+    CATALOGO = data;
+    const sel = $('testEstado');
+    sel.innerHTML = '<option value="">Elige un estado</option>' + data.estados.map(e => `<option value="${e.idedo}">${e.edo}</option>`).join('');
+    sel.disabled = false;
+  } catch { $('testMsg').textContent = 'No se pudo cargar la lista de estados.'; }
+}
+$('testEstado').addEventListener('change', () => {
+  const idedo = Number($('testEstado').value);
+  const selMun = $('testMunicipio');
+  if (!idedo) { selMun.innerHTML = '<option>Elige primero el estado</option>'; selMun.disabled = true; return; }
+  const municipios = CATALOGO.municipios.filter(m => m.idedo === idedo);
+  selMun.innerHTML = '<option value="">Elige un municipio</option>' + municipios.map(m => `<option value="${m.lmun}">${m.lmun}</option>`).join('');
+  selMun.disabled = false;
+});
+$('btnTestTodos').addEventListener('click', async () => {
+  const msg = $('testMsg'); msg.textContent = 'Enviando…';
+  try { const { resultado } = await api('test-todos', 'POST');
+    msg.textContent = `Enviado a ${resultado.enviados} de ${resultado.totalConTelegram} con Telegram vinculado.`;
+  } catch (err) { msg.textContent = 'Error: ' + err.message; }
+});
+$('btnTestMunicipio').addEventListener('click', async () => {
+  const msg = $('testMsg'); const sel = $('testEstado');
+  const estado = sel.options[sel.selectedIndex]?.textContent || '';
+  const municipio = $('testMunicipio').value.trim();
+  if (!sel.value || !municipio) { msg.textContent = 'Elige estado y municipio.'; return; }
+  msg.textContent = 'Enviando…';
+  try { const { resultado } = await api('test-municipio', 'POST', { estado, municipio });
+    msg.textContent = `Estado real: ${resultado.estadoReal}. Enviado a ${resultado.enviados} de ${resultado.encontrados}.`;
+  } catch (err) { msg.textContent = 'Error: ' + err.message; }
+});
+
+// --- Resumen ------------------------------------------------------------------
+function iconoStat(tipo){
+  const iconos = {
+    usuarios: '<svg viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 8v6m3-3h-6" stroke="currentColor" stroke-width="1.8"/></svg>',
+    vip: '★', municipios: '◎', ingresos: '↗'
+  };
+  return iconos[tipo] || '';
+}
+async function cargarResumen() {
+  const { stats } = await api('stats');
+  $('statsGrid').innerHTML = `
+    <article class="stat"><div class="stat-head"><div class="stat-icon si-blue">${iconoStat('usuarios')}</div><span class="delta">+${stats.nuevosSemana} esta semana</span></div>
+      <div class="stat-label">Usuarios activos</div><div class="stat-value">${stats.usuariosActivos}</div><div class="stat-line"></div></article>
+    <article class="stat"><div class="stat-head"><div class="stat-icon si-green">${iconoStat('vip')}</div><span class="delta">${stats.usuariosActivos ? Math.round(stats.vip/stats.usuariosActivos*1000)/10 : 0}% conversión</span></div>
+      <div class="stat-label">Suscripciones VIP</div><div class="stat-value">${stats.vip}</div><div class="stat-line" style="background:var(--green);width:${stats.usuariosActivos ? Math.round(stats.vip/stats.usuariosActivos*100) : 0}%"></div></article>
+    <article class="stat"><div class="stat-head"><div class="stat-icon si-amber">${iconoStat('municipios')}</div><span class="delta neutral">10 min</span></div>
+      <div class="stat-label">Municipios vigilados</div><div class="stat-value">${stats.municipiosVigilados}</div><div class="stat-line" style="background:var(--amber);width:70%"></div></article>
+    <article class="stat"><div class="stat-head"><div class="stat-icon si-purple">${iconoStat('ingresos')}</div></div>
+      <div class="stat-label">Ingresos del periodo</div><div class="stat-value">${money(stats.ingresosPeriodo)}</div><div class="stat-line" style="background:var(--purple);width:82%"></div></article>`;
+
+  const pctVip = stats.usuariosActivos ? Math.round(stats.vip / stats.usuariosActivos * 100) : 0;
+  $('healthRing').style.background = `conic-gradient(var(--cyan) 0 ${pctVip}%, #e7edf3 ${pctVip}%)`;
+  $('healthTotal').textContent = stats.usuariosActivos;
+  $('legendFree').textContent = `${stats.free} · ${100-pctVip}%`;
+  $('legendVip').textContent = `${stats.vip} · ${pctVip}%`;
+  $('legendNuevos').textContent = stats.nuevosSemana;
+
+  $('barsChart').innerHTML = stats.conversion7dias.map(d => {
+    const max = Math.max(...stats.conversion7dias.map(x => x.nuevosVip), 1);
+    const alto = Math.round((d.nuevosVip / max) * 100);
+    return `<div class="bar-col"><div class="bar" style="height:${Math.max(alto,4)}%"></div>${d.dia}</div>`;
+  }).join('');
+  const totalNuevos = stats.conversion7dias.reduce((s,d)=>s+d.nuevosVip,0);
+  const totalIngreso = stats.conversion7dias.reduce((s,d)=>s+d.ingreso,0);
+  $('conversionFoot').innerHTML = `<div><strong>${totalNuevos}</strong><span>Nuevos VIP</span></div><div><strong>${money(totalIngreso)}</strong><span>Ingreso generado</span></div>`;
+
+  $('sysActivos').textContent = stats.usuariosActivos;
+  $('sysUltimaConsulta').textContent = 'hace un momento';
+
+  const { monitoreos } = await api('monitoreos');
+  $('mapList').innerHTML = monitoreos.slice(0, 5).map(m => {
+    const clase = m.resultado === 'Abierto' ? 'open' : (m.resultado === 'Meta alcanzada' ? 'goal' : 'closed');
+    return `<div class="location"><div class="place"><strong>${m.municipio}</strong><small>${m.estado}</small></div>
+      <span class="status-pill ${clase}">${m.resultado}</span><span class="muted">${m.vip} VIP · ${m.free} Gratis</span></div>`;
+  }).join('') || '<div class="location"><div class="place"><strong>Sin monitoreos activos</strong></div></div>';
+
+  const { historial } = await api('alertas');
+  $('timelineList').innerHTML = historial.slice(0, 4).map(h => `
+    <div class="event"><div class="event-icon">↗</div>
+      <p><strong>${h.municipio}, ${h.estado}</strong>Pasó de ${h.estado_anterior} a ${h.estado_nuevo}.</p>
+      <time>${horaCorta(h.created_at)}</time></div>`).join('') || '<div class="event"><p>Sin cambios registrados todavía.</p></div>';
+}
+
+// --- Monitoreos -----------------------------------------------------------------
+async function cargarMonitoreos() {
+  const { monitoreos } = await api('monitoreos');
+  $('tablaMonitoreos').innerHTML = monitoreos.map(m => {
+    const clase = m.resultado === 'Abierto' ? 'open' : (m.resultado === 'Meta alcanzada' ? 'goal' : 'closed');
+    return `<tr><td><strong>${m.municipio}</strong><div class="muted">${m.estado}</div></td>
+      <td><span class="status-pill ${clase}">${m.resultado}</span></td>
+      <td>${m.vip} VIP · ${m.free} Gratis</td><td>${m.frecuencia}</td></tr>`;
+  }).join('') || '<tr><td colspan="4">Sin monitoreos activos todavía.</td></tr>';
+}
+document.querySelectorAll('[data-check]').forEach(b => b.addEventListener('click', async () => {
+  b.disabled = true; const original = b.textContent; b.textContent = 'Revisando…';
+  try { await cargarMonitoreos(); notify('Monitoreos actualizados'); } catch (err) { notify('Error: ' + err.message); }
+  b.disabled = false; b.textContent = original;
+}));
+
+// --- Usuarios ---------------------------------------------------------------------
+let SUSCRIPTORES_CACHE = [];
+let FILTRO_PLAN = 'todos';
+function pintarUsuarios(){
+  const busca = ($('userSearch').value || '').toLowerCase();
+  const filas = SUSCRIPTORES_CACHE.filter(s =>
+    (FILTRO_PLAN === 'todos' || s.plan === FILTRO_PLAN) &&
+    (!busca || s.email.toLowerCase().includes(busca) || s.municipio.toLowerCase().includes(busca))
+  );
+  $('tablaUsuarios').innerHTML = filas.map(s => {
+    const canales = [s.telegram_chat_id ? '✈' : '', s.email_enabled !== false ? '✉' : '', s.call_enabled ? '☎' : ''].filter(Boolean).join(' ');
+    return `<tr><td>${s.email}</td>
+      <td><span class="plan-pill ${s.plan === 'vip' ? 'plan-vip' : 'plan-free'}">${s.plan === 'vip' ? '★ VIP' : 'Gratis'}</span></td>
+      <td>${s.municipio}, ${s.estado}</td><td>${canales || '—'}</td>
+      <td>${fecha(s.created_at)}</td>
+      <td><span class="status-pill ${s.activo ? 'open' : 'error'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="6">Sin usuarios que coincidan.</td></tr>';
+}
+async function cargarUsuarios() {
+  const { suscriptores } = await api('suscriptores');
+  SUSCRIPTORES_CACHE = suscriptores;
+  pintarUsuarios();
+}
+document.querySelectorAll('[data-plan-tab]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-plan-tab]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); FILTRO_PLAN = b.dataset.planTab; pintarUsuarios();
+}));
+$('userSearch').addEventListener('input', pintarUsuarios);
+
+// --- Alertas --------------------------------------------------------------------------
+async function cargarAlertas() {
+  const { historial, pendientesTelegram } = await api('alertas');
+  const aperturas = historial.filter(h => h.estado_nuevo === 'Abierto');
+  const metas = historial.filter(h => h.estado_nuevo === 'Meta alcanzada');
+  $('kAperturas').textContent = aperturas.length;
+  $('kMetas').textContent = metas.length;
+  $('kPendientes').textContent = pendientesTelegram;
+  $('pendientesTexto').innerHTML = `<strong>${pendientesTelegram} suscriptor(es)</strong> aún no vinculan su Telegram.`;
+  const tarjeta = (h, urgente) => `<article class="alert-card ${urgente ? 'urgent' : ''}">
+      <div class="alert-top"><span class="status-pill ${urgente ? 'open' : 'goal'}">${h.estado_nuevo}</span><strong>${horaCorta(h.created_at)}</strong></div>
+      <p><strong>${h.municipio}, ${h.estado}</strong><br>Pasó de ${h.estado_anterior} a ${h.estado_nuevo}.</p></article>`;
+  $('colAperturas').innerHTML = aperturas.map(h => tarjeta(h, true)).join('') || '<p class="muted" style="padding:8px;">Sin aperturas todavía.</p>';
+  $('colMetas').innerHTML = metas.map(h => tarjeta(h, false)).join('') || '<p class="muted" style="padding:8px;">Sin metas alcanzadas todavía.</p>';
+  window._ALERTAS_CACHE = historial;
+}
+$('btnExportarAlertas').addEventListener('click', () => {
+  descargarCSV('alertas.csv', window._ALERTAS_CACHE || [], [
+    {titulo:'Municipio', campo:'municipio'}, {titulo:'Estado', campo:'estado'},
+    {titulo:'De', campo:'estado_anterior'}, {titulo:'A', campo:'estado_nuevo'}, {titulo:'Fecha', campo:'created_at'}
+  ]);
+});
+
+// --- Llamadas -------------------------------------------------------------------------
+function claseLlamada(resultado){
+  if (resultado === 'confirmada' || resultado === 'novedad_resuelta') return 'open';
+  if (resultado === 'pendiente' || resultado === 'requiere_atencion' || resultado === 'novedad') return 'goal';
+  return 'error';
+}
+async function cargarLlamadas() {
+  const { llamadas } = await api('llamadas');
+  $('tablaLlamadas').innerHTML = llamadas.map(l => `
+    <tr><td>${l.email || '—'}</td><td>${l.municipio}, ${l.estado}</td>
+      <td><span class="status-pill ${claseLlamada(l.resultado)}">${l.resultado}</span></td>
+      <td class="muted">${l.summary || '—'}</td>
+      <td>${fecha(l.created_at)} ${horaCorta(l.created_at)}</td></tr>`).join('') || '<tr><td colspan="5">Sin llamadas registradas todavía.</td></tr>';
+}
+
+// --- Pagos ---------------------------------------------------------------------------
+async function cargarPagos() {
+  const { pagos } = await api('pagos');
+  const totalIngresos = pagos.reduce((s,p)=>s+(Number(p.monto)||0),0);
+  const c50 = pagos.filter(p => p.discount_percent === 50).length;
+  const c70 = pagos.filter(p => p.discount_percent === 70).length;
+  $('pagosStats').innerHTML = `
+    <article class="stat"><div class="stat-label">Ingresos del ciclo</div><div class="stat-value">${money(totalIngresos)}</div><span class="delta">${pagos.length} pagos aprobados</span></article>
+    <article class="stat"><div class="stat-label">Ticket VIP</div><div class="stat-value">$100</div><span class="delta neutral">14 días</span></article>
+    <article class="stat"><div class="stat-label">Beneficios 50 %</div><div class="stat-value">${c50}</div><span class="delta neutral">Segundo ciclo</span></article>
+    <article class="stat"><div class="stat-label">Beneficios 70 %</div><div class="stat-value">${c70}</div><span class="delta neutral">Tercer ciclo</span></article>`;
+  $('tablaPagos').innerHTML = pagos.map(p => `
+    <tr><td>${p.email}</td><td>${p.municipio}, ${p.estado}</td><td><strong>${money(p.monto)}</strong></td>
+      <td>Ciclo ${p.cycle_number}</td><td>${p.discount_percent ? p.discount_percent + '%' : '—'}</td>
+      <td>${fecha(p.vip_started_at || p.created_at)}</td><td>${fecha(p.finaliza)}</td></tr>`).join('') || '<tr><td colspan="7">Sin pagos VIP todavía.</td></tr>';
+  window._PAGOS_CACHE = pagos;
+}
+$('btnExportarPagos').addEventListener('click', () => {
+  descargarCSV('pagos.csv', window._PAGOS_CACHE || [], [
+    {titulo:'Correo', campo:'email'}, {titulo:'Municipio', campo:'municipio'}, {titulo:'Monto', campo:'monto'},
+    {titulo:'Ciclo', campo:'cycle_number'}, {titulo:'Descuento', campo:'discount_percent'}, {titulo:'Inicio', campo:'created_at'}
+  ]);
+});
+
+// --- Referidos ------------------------------------------------------------------------
+async function cargarReferidos() {
+  const data = await api('referidos');
+  const mejor = [...data.filas].sort((a,b) => b.registros - a.registros)[0];
+  $('referidosStats').innerHTML = `
+    <article class="stat"><div class="stat-label">Clics compartidos</div><div class="stat-value">${data.totalClics}</div></article>
+    <article class="stat"><div class="stat-label">Registros obtenidos</div><div class="stat-value">${data.totalRegistros}</div></article>
+    <article class="stat"><div class="stat-label">Compradores VIP</div><div class="stat-value">${data.totalCompradores}</div></article>
+    <article class="stat"><div class="stat-label">Mejor promotor</div><div class="stat-value" style="font-size:18px;">${mejor ? mejor.email.split('@')[0] : '—'}</div><span class="delta neutral">${mejor ? mejor.registros + ' registros' : ''}</span></article>`;
+  $('tablaReferidos').innerHTML = data.filas.map(f => `
+    <tr><td>${f.email}</td><td>${f.codigo}</td><td>${f.clics}</td><td>${f.registros}</td><td>${f.vip}</td><td><strong>${f.conversion}%</strong></td></tr>`).join('') || '<tr><td colspan="6">Todavía nadie ha compartido su código.</td></tr>';
+}
+
+// --- Ciclos y fechas --------------------------------------------------------------------
+let CONFIG_CACHE = null;
+async function cargarCiclos() {
+  const { config } = await api('config');
+  CONFIG_CACHE = config || {};
+  $('cfgRegistro').value = String(CONFIG_CACHE.registro_abierto);
+  $('cfgInicio').value = CONFIG_CACHE.periodo_inicio || '';
+  $('cfgFin').value = CONFIG_CACHE.periodo_fin || '';
+  $('cfgEncuesta').value = CONFIG_CACHE.encuesta_fecha || '';
+  $('cfgSiguienteCiclo').value = CONFIG_CACHE.siguiente_ciclo_fecha || '';
+  $('cfgVideo1').value = CONFIG_CACHE.video1_url || '';
+  $('cfgVideo2').value = CONFIG_CACHE.video2_url || '';
+  $('tgLectura').classList.toggle('on', CONFIG_CACHE.mostrar_lectura_real !== false);
+  $('tgGuia').classList.toggle('on', CONFIG_CACHE.incluir_guia_documentos !== false);
+  $('tgEncuesta').classList.toggle('on', CONFIG_CACHE.enviar_encuesta_final !== false);
+  calcularFase(CONFIG_CACHE);
+  mostrarPreview('prep');
+}
+function calcularFase(c){
+  const hoy = new Date().toISOString().slice(0,10);
+  let fase = 'prep', titulo = 'Sin fechas configuradas', texto = '', countdown = '—', countdownLabel = '';
+  if (c.periodo_inicio && hoy < c.periodo_inicio) {
+    fase = 'prep'; titulo = 'Fase de preparación'; texto = 'Publicidad y altas abiertas. El monitoreo intensivo todavía no inicia.';
+    const dias = Math.ceil((new Date(c.periodo_inicio) - new Date(hoy)) / 86400000);
+    countdown = dias + ' días'; countdownLabel = 'para la fecha de apertura configurada';
+  } else if (c.periodo_inicio && c.periodo_fin && hoy >= c.periodo_inicio && hoy <= c.periodo_fin) {
+    fase = 'active'; titulo = 'Ventana activa'; texto = 'Se aplican las frecuencias y canales de cada plan.';
+    countdown = fecha(c.periodo_fin); countdownLabel = 'fin de la ventana';
+  } else if (c.encuesta_fecha && hoy <= c.encuesta_fecha) {
+    fase = 'survey'; titulo = 'Encuesta'; texto = 'Se pregunta a los VIP si encontraron su lugar.';
+    countdown = fecha(c.encuesta_fecha); countdownLabel = 'fecha de encuesta';
+  } else if (c.periodo_fin && hoy > c.periodo_fin) {
+    fase = 'wait'; titulo = 'Espera del siguiente ciclo'; texto = 'El periodo anterior ya terminó.';
+    countdown = c.siguiente_ciclo_fecha ? fecha(c.siguiente_ciclo_fecha) : '—'; countdownLabel = 'siguiente ciclo estimado';
+  }
+  $('adminPhaseTitle').textContent = titulo;
+  $('adminPhaseText').textContent = texto;
+  $('adminCountdown').textContent = countdown;
+  $('adminCountdownLabel').textContent = countdownLabel;
+  document.querySelectorAll('[data-phase]').forEach(el => el.classList.toggle('active', el.dataset.phase === fase));
+}
+const PREVIEWS = {
+  prep: ['Mensaje de preparación · Gratis', 'Faltan varios días. Haz tu preregistro y ten listos tus documentos. Te sugerimos activar VIP antes de la apertura.'],
+  active: ['Mensaje de apertura · VIP', 'Tu municipio aparece abierto. Se envía Telegram, correo y una llamada única. Gratis recibe Telegram en su siguiente revisión.'],
+  survey: ['Seguimiento VIP', '¿Lograste encontrar y apartar tu lugar? Si no, se activa 50% para el siguiente ciclo; un segundo intento sin éxito habilita 70%.']
+};
+function mostrarPreview(fase){
+  const [titulo, texto] = PREVIEWS[fase];
+  $('cyclePreview').innerHTML = `<strong>${titulo}</strong><br>${texto}`;
+}
+document.querySelectorAll('[data-cycle-phase]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-cycle-phase]').forEach(x => { x.classList.remove('btn-primary'); x.classList.add('btn-outline'); });
+  b.classList.add('btn-primary'); b.classList.remove('btn-outline');
+  mostrarPreview(b.dataset.cyclePhase);
+}));
+$('btnGuardarCiclos').addEventListener('click', async () => {
+  const msg = $('ciclosMsg'); msg.textContent = 'Guardando…';
+  try {
+    const { config } = await api('config', 'POST', {
+      registro_abierto: $('cfgRegistro').value === 'true',
+      periodo_inicio: $('cfgInicio').value || null,
+      periodo_fin: $('cfgFin').value || null,
+      encuesta_fecha: $('cfgEncuesta').value || null,
+      siguiente_ciclo_fecha: $('cfgSiguienteCiclo').value || null,
+      mostrar_lectura_real: $('tgLectura').classList.contains('on'),
+      incluir_guia_documentos: $('tgGuia').classList.contains('on'),
+      enviar_encuesta_final: $('tgEncuesta').classList.contains('on')
+    });
+    CONFIG_CACHE = config; calcularFase(config);
+    msg.textContent = 'Guardado.'; notify('Calendario guardado');
+  } catch (err) { msg.textContent = 'Error: ' + err.message; }
+});
+$('btnGuardarVideos').addEventListener('click', async () => {
+  const msg = $('videosMsg'); msg.textContent = 'Guardando…';
+  try {
+    await api('config', 'POST', { video1_url: $('cfgVideo1').value.trim() || null, video2_url: $('cfgVideo2').value.trim() || null });
+    msg.textContent = 'Videos guardados.'; notify('Videos guardados');
+  } catch (err) { msg.textContent = 'Error: ' + err.message; }
+});
+</script>
+  </body>
+</html>

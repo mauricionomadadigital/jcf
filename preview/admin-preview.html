@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#091a2f">
+<title>JCF Monitor · Panel de control</title>
+<style>
+  :root{
+    --navy:#091a2f; --navy-2:#102844; --ink:#14243a; --muted:#718096; --line:#e4eaf1;
+    --bg:#f4f7fb; --card:#fff; --blue:#2367f5; --cyan:#27cbb3; --green:#1dad72;
+    --amber:#f1a526; --red:#e4545e; --purple:#7357e8;
+    --shadow:0 12px 35px rgba(16,40,68,.08); --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;}
+  button,input,select{font:inherit;}
+  button{cursor:pointer;}
+  #login{max-width:340px;margin:90px auto;text-align:center;padding:0 20px;}
+  #login h1{font-size:22px;}
+  #login input{width:100%;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 13px;margin:14px 0 8px;}
+  #login button{width:100%;height:44px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:700;}
+  .oculto{display:none;}
+  .app{min-height:100vh;display:grid;grid-template-columns:250px 1fr;}
+  .sidebar{background:var(--navy);color:#d6e2ef;padding:24px 16px;position:fixed;inset:0 auto 0 0;width:250px;max-height:100dvh;display:flex;flex-direction:column;overflow-y:auto;z-index:30;}
+  .brand{display:flex;gap:11px;align-items:center;padding:0 8px 24px;}
+  .brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(145deg,#276ff9,#34d5bc);display:grid;place-items:center;}
+  .brand strong{display:block;color:#fff;font-size:16px;}
+  .brand small{color:#8da4ba;font-size:11px;}
+  .nav-label{padding:0 12px 7px;color:#69839e;text-transform:uppercase;font-size:10.5px;font-weight:800;letter-spacing:.1em;margin-top:18px;}
+  .nav{display:grid;gap:4px;}
+  .nav-btn{border:0;background:transparent;color:#9fb3c8;border-radius:10px;padding:10px 12px;text-align:left;display:flex;align-items:center;gap:10px;font-size:13.5px;}
+  .nav-btn:hover{background:#102b49;color:#fff;}
+  .nav-btn.active{background:#173858;color:#fff;box-shadow:inset 3px 0 #36dec4;}
+  .nav-ext{display:block;text-decoration:none;color:#9fb3c8;border-radius:10px;padding:10px 12px;font-size:13.5px;}
+  .nav-ext:hover{color:#fff;}
+  .main{grid-column:2;min-width:0;}
+  .topbar{height:70px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);}
+  .page-title h1{font-size:20px;margin:0;}
+  .page-title p{margin:2px 0 0;color:var(--muted);font-size:12.5px;}
+  .content{padding:24px 26px 44px;max-width:1500px;margin:0 auto;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px;}
+  .stat{background:var(--card);border:1px solid #e8edf3;border-radius:var(--radius);padding:18px;box-shadow:0 7px 20px rgba(20,36,58,.035);}
+  .stat-label{color:#708096;font-weight:650;font-size:12.5px;}
+  .stat-value{font-size:26px;font-weight:820;margin-top:3px;}
+  .delta{font-size:11.5px;color:var(--green);font-weight:700;}
+  .card{background:var(--card);border:1px solid #e6ecf2;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:18px;}
+  .card-head{padding:17px 20px;border-bottom:1px solid #edf1f5;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .card-head h2{font-size:15px;margin:0;}
+  .card-head p{margin:2px 0 0;color:var(--muted);font-size:12px;}
+  .btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:7px;}
+  .btn-primary{background:var(--blue);color:#fff;}
+  .btn-outline{background:#fff;color:#29445f;border:1px solid var(--line);}
+  .btn-secondary{background:#eaf0ff;color:#235bd1;}
+  table{border-collapse:collapse;width:100%;min-width:640px;}
+  th{text-align:left;padding:10px 14px;background:#f8fafc;color:#7b8998;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;}
+  td{padding:11px 14px;border-top:1px solid #edf1f5;font-size:13px;}
+  .table-wrap{overflow-x:auto;}
+  .status-pill,.plan-pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:4px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;}
+  .status-pill:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .open{background:#e7f8f1;color:#178e5c;}
+  .closed{background:#feecef;color:#c33f4b;}
+  .goal{background:#fff4df;color:#bd7810;}
+  .error{background:#edf1f5;color:#6d7e90;}
+  .plan-free{background:#edf1f5;color:#55687c;}
+  .plan-vip{background:#ece8ff;color:#6848dc;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;color:#627488;font-size:11.5px;font-weight:700;margin-bottom:5px;}
+  .field input,.field select{width:100%;height:40px;border:1px solid var(--line);border-radius:9px;padding:0 11px;background:#fff;}
+  .fila{display:flex;gap:12px;}
+  .fila>div{flex:1;}
+  .toggle{width:42px;height:23px;border:0;border-radius:99px;background:#ccd5df;padding:3px;}
+  .toggle:after{content:"";display:block;width:17px;height:17px;border-radius:50%;background:#fff;transition:.2s;}
+  .toggle.on{background:var(--cyan);}
+  .toggle.on:after{transform:translateX(19px);}
+  .msg{font-size:12.5px;color:var(--muted);margin-top:9px;min-height:15px;}
+  .msg.ok{color:var(--green);}
+  .msg.error{color:#c33f4b;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .setting-card{padding:18px;}
+  .setting-card h3{margin:0 0 3px;font-size:14.5px;}
+  .setting-card>p{color:var(--muted);margin:0 0 14px;font-size:12px;}
+  .draft-banner{display:flex;gap:11px;background:#fff8e9;border:1px solid #f2d79e;border-radius:13px;padding:12px 15px;margin-bottom:18px;color:#79551a;font-size:12.5px;}
+  .talkyria-warn{background:#fff0ea;border:1px solid #f6c4a8;color:#8a3c1c;border-radius:11px;padding:11px 13px;font-size:12px;margin-top:10px;}
+  .mono{font-family:ui-monospace,monospace;}
+  @media (max-width:900px){
+    .stats,.grid2,.settings-grid{grid-template-columns:1fr;}
+    .app{display:block;}
+    .sidebar{position:static;width:auto;max-height:none;}
+    .main{grid-column:auto;}
+  }
+</style>
+</head>
+<body>
+<div style="position:sticky;top:0;z-index:9999;background:#7c3aed;color:#fff;text-align:center;padding:8px 14px;font:600 13px/1.4 Inter,sans-serif;">
+  🔍 VISTA PREVIA — datos de ejemplo, no conectado a Supabase. Este archivo no se despliega (Netlify solo publica /public). Contraseña: <code style="background:rgba(255,255,255,.2);padding:1px 6px;border-radius:5px;">vista2026</code>
+</div>
+
+<div id="login">
+  <h1>Panel admin</h1>
+  <p style="color:#718096;font-size:13px;">Monitor JCF — acceso restringido</p>
+  <input id="inpPass" type="password" placeholder="Contraseña">
+  <button id="btnEntrar">Entrar</button>
+  <div class="msg error" id="loginMsg"></div>
+</div>
+
+<div id="appWrap" class="oculto">
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><svg width="20" viewBox="0 0 32 32" fill="none"><path d="M3 17h5l3-8 6 16 4-11 3 3h5" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><strong>JCF Monitor</strong><small>Control comercial</small></div>
+    </div>
+    <div class="nav-label">Operación</div>
+    <nav class="nav">
+      <button class="nav-btn" data-screen="resumen" data-title="Resumen general" data-subtitle="Operación en tiempo real">Resumen</button>
+      <button class="nav-btn" data-screen="monitoreos" data-title="Monitoreos" data-subtitle="Estados y municipios en seguimiento">Monitoreos</button>
+      <button class="nav-btn" data-screen="usuarios" data-title="Usuarios" data-subtitle="Plan Gratis y VIP">Usuarios</button>
+      <button class="nav-btn" data-screen="alertas" data-title="Centro de alertas" data-subtitle="Historial de cambios detectados">Alertas</button>
+      <button class="nav-btn" data-screen="llamadas" data-title="Llamadas automáticas" data-subtitle="Talkyria — solo plan VIP">Llamadas</button>
+    </nav>
+    <div class="nav-label">Negocio</div>
+    <nav class="nav">
+      <button class="nav-btn" data-screen="pagos" data-title="Pagos VIP" data-subtitle="Ingresos y ciclos">Pagos</button>
+      <button class="nav-btn" data-screen="referidos" data-title="Programa de referidos" data-subtitle="Clics, registros y conversión">Referidos</button>
+      <button class="nav-btn" data-screen="ciclos" data-title="Ciclos y fechas" data-subtitle="Periodo global de monitoreo">Ciclos y fechas</button>
+      <button class="nav-btn" data-screen="config" data-title="Configuración" data-subtitle="Tutoriales y opciones del panel del cliente">Configuración</button>
+    </nav>
+    <div class="nav-label">Cliente</div>
+    <nav class="nav">
+      <a class="nav-ext" href="/cuenta.html" target="_blank" rel="noopener">↗ Ver portal del cliente</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="page-title"><h1 id="topTitle">Resumen general</h1><p id="topSubtitle">Operación en tiempo real</p></div>
+      <button class="btn btn-outline" id="btnCerrarSesion">Cerrar sesión</button>
+    </header>
+    <div class="content">
+      <div class="draft-banner">Datos reales de tu Supabase — cualquier acción aquí (guardar, probar, activar) afecta al sistema en producción.</div>
+
+      <!-- RESUMEN -->
+      <section class="screen active" id="resumen">
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Usuarios activos</div><div class="stat-value" id="statUsuarios">–</div><span class="delta" id="statNuevos"></span></div>
+          <div class="stat"><div class="stat-label">Suscripciones VIP</div><div class="stat-value" id="statVip">–</div><span class="delta" id="statFree"></span></div>
+          <div class="stat"><div class="stat-label">Municipios vigilados</div><div class="stat-value" id="statMunicipios">–</div></div>
+          <div class="stat"><div class="stat-label">Ingresos del periodo</div><div class="stat-value" id="statIngresos">–</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h2>Conversiones VIP — últimos 7 días</h2></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Día</th><th>Nuevos VIP</th><th>Ingreso</th></tr></thead><tbody id="tablaConversion"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- MONITOREOS -->
+      <section class="screen" id="monitoreos">
+        <div class="card">
+          <div class="card-head"><div><h2>Monitoreos activos</h2><p>Una consulta por municipio distribuye el resultado a todos sus suscriptores.</p></div>
+            <button class="btn btn-outline" id="btnRefrescarMonitoreos">↻ Refrescar</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Ubicación</th><th>Resultado</th><th>Suscriptores</th><th>Frecuencia</th></tr></thead><tbody id="tablaMonitoreos"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- USUARIOS -->
+      <section class="screen" id="usuarios">
+        <div class="card">
+          <div class="card-head"><div><h2>Usuarios registrados <span class="mono" id="totalUsuarios"></span></h2></div>
+            <button class="btn btn-outline" id="btnRefrescarUsuarios">↻ Refrescar</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Email</th><th>Plan</th><th>Municipio</th><th>Telegram</th><th>Activo</th><th>Alta</th></tr></thead><tbody id="tablaUsuarios"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h2>Pruebas de Telegram</h2><p>Consulta en vivo el estado real y manda una alerta de prueba.</p></div></div>
+          <div style="padding:0 20px 20px;">
+            <button class="btn btn-primary" id="btnTestTodos">Probar a todos los suscriptores</button>
+            <div class="fila" style="margin-top:14px;">
+              <div class="field"><label>Estado</label><select id="testEstado" disabled><option>Cargando…</option></select></div>
+              <div class="field"><label>Municipio</label><select id="testMunicipio" disabled><option>Elige primero el estado</option></select></div>
+            </div>
+            <button class="btn btn-outline" id="btnTestMunicipio">Probar solo este estado/municipio</button>
+            <div class="msg" id="testMsg"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALERTAS -->
+      <section class="screen" id="alertas">
+        <div class="card">
+          <div class="card-head"><div><h2>Cambios detectados</h2><p>Historial real de aperturas y metas alcanzadas.</p></div>
+            <button class="btn btn-outline" id="btnRefrescarAlertas">↻ Refrescar</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Municipio</th><th>Estado</th><th>De</th><th>A</th><th>Fecha</th></tr></thead><tbody id="tablaAlertas"></tbody></table></div>
+        </div>
+        <div class="card"><div class="card-head"><div><h2>Activaciones de Telegram pendientes</h2><p id="pendientesTexto">–</p></div></div></div>
+      </section>
+
+      <!-- LLAMADAS -->
+      <section class="screen" id="llamadas">
+        <div class="talkyria-warn">Integración con Talkyria construida contra su documentación real (no adivinada). Si no ves llamadas aquí, confirma que <code>TALKYRIA_AGENT_ID</code> esté configurado — corre <code>scripts/crear-agente-talkyria.mjs</code> si aún no lo has hecho.</div>
+        <div class="card">
+          <div class="card-head"><div><h2>Historial de llamadas</h2><p>Una llamada por suscriptor, municipio y evento de apertura (anti-duplicado).</p></div>
+            <button class="btn btn-outline" id="btnRefrescarLlamadas">↻ Refrescar</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Correo</th><th>Municipio</th><th>Resultado</th><th>Fecha</th></tr></thead><tbody id="tablaLlamadas"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- PAGOS -->
+      <section class="screen" id="pagos">
+        <div class="card">
+          <div class="card-head"><div><h2>Pagos VIP</h2><p>Cada fila es un pago aprobado por MercadoPago (incluye renovaciones).</p></div>
+            <button class="btn btn-outline" id="btnRefrescarPagos">↻ Refrescar</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Municipio</th><th>Importe</th><th>Ciclo</th><th>Descuento</th><th>Inicio</th><th>Finaliza</th></tr></thead><tbody id="tablaPagos"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- REFERIDOS -->
+      <section class="screen" id="referidos">
+        <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stat"><div class="stat-label">Clics totales</div><div class="stat-value" id="refClics">–</div></div>
+          <div class="stat"><div class="stat-label">Registros por referido</div><div class="stat-value" id="refRegistros">–</div></div>
+          <div class="stat"><div class="stat-label">Compras VIP por referido</div><div class="stat-value" id="refCompras">–</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h2>Rendimiento por usuario</h2><p>Enlace de cada usuario: <span class="mono">/.netlify/functions/track-ref?code=SUCODIGO</span></p></div>
+            <button class="btn btn-outline" id="btnRefrescarReferidos">↻ Refrescar</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Código</th><th>Clics</th><th>Registros</th><th>VIP</th><th>Conversión</th></tr></thead><tbody id="tablaReferidos"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- CICLOS Y FECHAS -->
+      <section class="screen" id="ciclos">
+        <div class="settings-grid">
+          <div class="card setting-card">
+            <h3>Periodo global de monitoreo</h3>
+            <p>El cron nacional solo actúa dentro de este rango de fechas.</p>
+            <div class="field"><label>Registro abierto</label><select id="cfgRegistro"><option value="true">Sí, abierto</option><option value="false">No, cerrado</option></select></div>
+            <div class="fila">
+              <div class="field"><label>Inicio del periodo</label><input id="cfgInicio" type="date"></div>
+              <div class="field"><label>Fin del periodo</label><input id="cfgFin" type="date"></div>
+            </div>
+            <div class="field"><label>Fecha estimada de la próxima apertura</label><input id="cfgEstimada" type="date"></div>
+            <div class="field"><label>Fecha de encuesta VIP (fin de ventana + 1 día sugerido)</label><input id="cfgEncuesta" type="date"></div>
+            <div class="field"><label>Fecha estimada del siguiente ciclo</label><input id="cfgSiguienteCiclo" type="date"></div>
+            <button class="btn btn-primary" id="btnGuardarCiclos">Guardar</button>
+            <div class="msg" id="ciclosMsg"></div>
+          </div>
+          <div class="card setting-card">
+            <h3>Fase actual (calculada)</h3>
+            <p>Se calcula sola a partir de las fechas de la izquierda — no se edita aquí.</p>
+            <div id="faseActual" style="font-size:16px;font-weight:700;color:var(--blue);">–</div>
+            <div class="msg" id="faseDetalle"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONFIGURACIÓN -->
+      <section class="screen" id="config">
+        <div class="settings-grid">
+          <div class="card setting-card">
+            <h3>Tutoriales del portal del cliente</h3>
+            <p>Se muestran en la pestaña "Tutoriales" de <span class="mono">/cuenta.html</span>.</p>
+            <div class="field"><label>Video 1 · Configura Telegram</label><input id="cfgVideo1" placeholder="URL de YouTube"></div>
+            <div class="field"><label>Video 2 · Cambia tu municipio</label><input id="cfgVideo2" placeholder="URL de YouTube"></div>
+            <button class="btn btn-primary" id="btnGuardarVideos">Guardar videos</button>
+            <div class="msg" id="videosMsg"></div>
+          </div>
+          <div class="card setting-card">
+            <h3>Opciones del portal del cliente</h3>
+            <div class="fila" style="align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);">
+              <div><strong>Mostrar lectura real en preparación</strong></div>
+              <button class="toggle" id="tgLectura"></button>
+            </div>
+            <div class="fila" style="align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);">
+              <div><strong>Incluir guía de documentos</strong></div>
+              <button class="toggle" id="tgGuia"></button>
+            </div>
+            <div class="fila" style="align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);">
+              <div><strong>Enviar encuesta al finalizar</strong></div>
+              <button class="toggle" id="tgEncuesta"></button>
+            </div>
+            <button class="btn btn-primary" style="margin-top:14px;" id="btnGuardarOpciones">Guardar opciones</button>
+            <div class="msg" id="opcionesMsg"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let PASS = '';
+let CATALOGO = { estados: [], municipios: [] };
+
+const PREVIEW_PASSWORD = 'vista2026';
+
+function mockAdminResponse(action, method, body) {
+  const hoy = new Date();
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const diasAtras = (n) => { const d = new Date(hoy); d.setDate(d.getDate() - n); return d.toISOString(); };
+
+  switch (action) {
+    case 'config':
+      if (method === 'POST') return { ok: true, config: { ...MOCK_CONFIG, ...body } };
+      return { ok: true, config: MOCK_CONFIG };
+    case 'suscriptores':
+      return { ok: true, suscriptores: MOCK_SUSCRIPTORES };
+    case 'stats':
+      return { ok: true, stats: {
+        usuariosActivos: 248, nuevosSemana: 12, vip: 96, free: 152, municipiosVigilados: 37,
+        ingresosPeriodo: 9600,
+        conversion7dias: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((dia, i) => ({
+          dia, nuevosVip: [3,5,4,7,6,9,7][i], ingreso: [300,500,400,700,600,900,700][i]
+        }))
+      }};
+    case 'monitoreos':
+      return { ok: true, monitoreos: [
+        { estado: 'Guanajuato', municipio: 'León', vip: 18, free: 31, resultado: 'Abierto', frecuencia: '10 minutos' },
+        { estado: 'Estado de México', municipio: 'Ecatepec', vip: 14, free: 22, resultado: 'Cerrado', frecuencia: '10 minutos' },
+        { estado: 'Querétaro', municipio: 'Querétaro', vip: 11, free: 17, resultado: 'Meta alcanzada', frecuencia: '10 minutos' },
+        { estado: 'Guanajuato', municipio: 'Xichú', vip: 3, free: 8, resultado: 'Cerrado', frecuencia: '2 horas' }
+      ]};
+    case 'pagos':
+      return { ok: true, pagos: [
+        { email: 'maria.r@gmail.com', municipio: 'León', estado: 'Guanajuato', monto: 100, cycle_number: 1, discount_percent: 0, vip_started_at: diasAtras(1), created_at: diasAtras(1), finaliza: diasAtras(-13) },
+        { email: 'eduardo.silva@gmail.com', municipio: 'Ecatepec', estado: 'Estado de México', monto: 50, cycle_number: 2, discount_percent: 50, vip_started_at: diasAtras(2), created_at: diasAtras(2), finaliza: diasAtras(-12) }
+      ]};
+    case 'referidos':
+      return { ok: true, totalClics: 418, totalRegistros: 126, totalCompradores: 29, filas: [
+        { email: 'maria.r@gmail.com', codigo: 'MAR8K2', clics: 41, registros: 14, vip: 5, conversion: 35.7 },
+        { email: 'jose.carlos@gmail.com', codigo: 'JOS19P', clics: 33, registros: 11, vip: 3, conversion: 27.3 }
+      ]};
+    case 'llamadas':
+      return { ok: true, llamadas: [
+        { email: 'maria.r@gmail.com', municipio: 'León', estado: 'Guanajuato', resultado: 'confirmada', summary: 'El cliente confirmó que ya se va a registrar.', created_at: diasAtras(0) },
+        { email: 'andrea.gomez@outlook.com', municipio: 'Querétaro', estado: 'Querétaro', resultado: 'no_contesto', summary: null, created_at: diasAtras(1) }
+      ]};
+    case 'alertas':
+      return { ok: true, pendientesTelegram: 5, historial: [
+        { municipio: 'León', estado: 'Guanajuato', estado_anterior: 'Cerrado', estado_nuevo: 'Abierto', created_at: diasAtras(0) },
+        { municipio: 'Querétaro', estado: 'Querétaro', estado_anterior: 'Abierto', estado_nuevo: 'Meta alcanzada', created_at: diasAtras(1) }
+      ]};
+    case 'test-todos':
+      return { ok: true, resultado: { enviados: 231, totalConTelegram: 243 } };
+    case 'test-municipio':
+      return { ok: true, resultado: { enviados: 18, encontrados: 18, estadoReal: 'Abierto' } };
+    default:
+      return { ok: true };
+  }
+}
+
+const MOCK_CONFIG = {
+  registro_abierto: true, periodo_inicio: '2026-10-01', periodo_fin: '2026-10-15',
+  fecha_estimada_apertura: '2026-10-01', encuesta_fecha: '2026-10-16', siguiente_ciclo_fecha: '2026-12-01',
+  video1_url: '', video2_url: '', mostrar_lectura_real: true, incluir_guia_documentos: true, enviar_encuesta_final: true
+};
+const MOCK_SUSCRIPTORES = [
+  { email: 'maria.r@gmail.com', plan: 'vip', municipio: 'León', estado: 'Guanajuato', telegram_chat_id: '123456', activo: true, created_at: new Date().toISOString() },
+  { email: 'jose.carlos@gmail.com', plan: 'free', municipio: 'Ecatepec', estado: 'Estado de México', telegram_chat_id: null, activo: true, created_at: new Date().toISOString() },
+  { email: 'andrea.gomez@outlook.com', plan: 'vip', municipio: 'Querétaro', estado: 'Querétaro', telegram_chat_id: '987654', activo: true, created_at: new Date().toISOString() },
+  { email: 'ricardo.luna@gmail.com', plan: 'free', municipio: 'Xichú', estado: 'Guanajuato', telegram_chat_id: '555222', activo: true, created_at: new Date().toISOString() }
+];
+
+async function api(action, method = 'GET', body = null) {
+  if (PASS !== PREVIEW_PASSWORD) throw new Error('Contraseña incorrecta (vista previa: ' + PREVIEW_PASSWORD + ')');
+  await new Promise(r => setTimeout(r, 150));
+  return mockAdminResponse(action, method, body);
+}
+
+function money(n){ return '$' + (Number(n)||0).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fecha(s){ return s ? new Date(s).toLocaleDateString('es-MX') : '—'; }
+
+// --- Login ----------------------------------------------------------------
+$('btnEntrar').addEventListener('click', async () => {
+  PASS = $('inpPass').value;
+  try {
+    await api('config');
+    sessionStorage.setItem('jcf_admin_pass', PASS);
+    $('login').classList.add('oculto');
+    $('appWrap').classList.remove('oculto');
+    cargarCatalogoAdmin();
+    showScreen('resumen');
+  } catch (err) {
+    $('loginMsg').textContent = 'Contraseña incorrecta.';
+  }
+});
+$('btnCerrarSesion').addEventListener('click', () => {
+  sessionStorage.removeItem('jcf_admin_pass');
+  location.reload();
+});
+
+const guardada = sessionStorage.getItem('jcf_admin_pass');
+if (guardada) {
+  PASS = guardada;
+  api('config').then(() => {
+    $('login').classList.add('oculto');
+    $('appWrap').classList.remove('oculto');
+    cargarCatalogoAdmin();
+    showScreen('resumen');
+  }).catch(() => sessionStorage.removeItem('jcf_admin_pass'));
+}
+
+// --- Navegación -------------------------------------------------------------
+const CARGADORES = {
+  resumen: cargarResumen, monitoreos: cargarMonitoreos, usuarios: cargarUsuarios,
+  alertas: cargarAlertas, llamadas: cargarLlamadas, pagos: cargarPagos,
+  referidos: cargarReferidos, ciclos: cargarCiclos, config: cargarConfigScreen
+};
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  const btn = document.querySelector(`[data-screen="${id}"]`);
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) { btn.classList.add('active'); $('topTitle').textContent = btn.dataset.title; $('topSubtitle').textContent = btn.dataset.subtitle; }
+  if (CARGADORES[id]) CARGADORES[id]();
+}
+document.querySelectorAll('[data-screen]').forEach(b => b.addEventListener('click', () => showScreen(b.dataset.screen)));
+
+// --- Catálogo (para el selector de pruebas) ----------------------------------
+const MOCK_CATALOGO = {
+  estados: [
+    { idedo: 1, edo: 'Aguascalientes', status: 0 },
+    { idedo: 9, edo: 'Ciudad de México', status: 0 },
+    { idedo: 11, edo: 'Guanajuato', status: 1 },
+    { idedo: 14, edo: 'Jalisco', status: 0 },
+    { idedo: 19, edo: 'Nuevo León', status: 0 },
+    { idedo: 22, edo: 'Querétaro', status: 2 }
+  ],
+  municipios: [
+    { idedo: 11, lmun: 'León' }, { idedo: 11, lmun: 'San Luis de la Paz' },
+    { idedo: 11, lmun: 'Xichú' }, { idedo: 11, lmun: 'Celaya' },
+    { idedo: 22, lmun: 'Querétaro' }, { idedo: 22, lmun: 'San Juan del Río' },
+    { idedo: 9, lmun: 'Iztapalapa' }, { idedo: 9, lmun: 'Coyoacán' },
+    { idedo: 14, lmun: 'Guadalajara' }, { idedo: 19, lmun: 'Monterrey' }
+  ]
+};
+async function cargarCatalogoAdmin() {
+  await new Promise(r => setTimeout(r, 100));
+  CATALOGO = MOCK_CATALOGO;
+  const sel = $('testEstado');
+  sel.innerHTML = '<option value="">Elige un estado</option>' + CATALOGO.estados.map(e => `<option value="${e.idedo}">${e.edo}</option>`).join('');
+  sel.disabled = false;
+}
+$('testEstado').addEventListener('change', () => {
+  const idedo = Number($('testEstado').value);
+  const selMun = $('testMunicipio');
+  if (!idedo) { selMun.innerHTML = '<option>Elige primero el estado</option>'; selMun.disabled = true; return; }
+  const municipios = CATALOGO.municipios.filter(m => m.idedo === idedo);
+  selMun.innerHTML = '<option value="">Elige un municipio</option>' + municipios.map(m => `<option value="${m.lmun}">${m.lmun}</option>`).join('');
+  selMun.disabled = false;
+});
+$('btnTestTodos').addEventListener('click', async () => {
+  const msg = $('testMsg'); msg.className = 'msg'; msg.textContent = 'Enviando…';
+  try { const { resultado } = await api('test-todos', 'POST');
+    msg.textContent = `Enviado a ${resultado.enviados} de ${resultado.totalConTelegram} con Telegram vinculado.`; msg.classList.add('ok');
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.classList.add('error'); }
+});
+$('btnTestMunicipio').addEventListener('click', async () => {
+  const msg = $('testMsg'); const sel = $('testEstado');
+  const estado = sel.options[sel.selectedIndex]?.textContent || '';
+  const municipio = $('testMunicipio').value.trim();
+  if (!sel.value || !municipio) { msg.textContent = 'Elige estado y municipio.'; msg.className = 'msg error'; return; }
+  msg.className = 'msg'; msg.textContent = 'Enviando…';
+  try { const { resultado } = await api('test-municipio', 'POST', { estado, municipio });
+    msg.textContent = `Estado real: ${resultado.estadoReal}. Enviado a ${resultado.enviados} de ${resultado.encontrados}.`; msg.classList.add('ok');
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.classList.add('error'); }
+});
+
+// --- Resumen ------------------------------------------------------------------
+async function cargarResumen() {
+  const { stats } = await api('stats');
+  $('statUsuarios').textContent = stats.usuariosActivos;
+  $('statNuevos').textContent = `+${stats.nuevosSemana} esta semana`;
+  $('statVip').textContent = stats.vip;
+  $('statFree').textContent = `${stats.free} en plan Gratis`;
+  $('statMunicipios').textContent = stats.municipiosVigilados;
+  $('statIngresos').textContent = money(stats.ingresosPeriodo);
+  $('tablaConversion').innerHTML = stats.conversion7dias.map(d => `<tr><td>${d.dia}</td><td>${d.nuevosVip}</td><td>${money(d.ingreso)}</td></tr>`).join('');
+}
+
+// --- Monitoreos -----------------------------------------------------------------
+async function cargarMonitoreos() {
+  const { monitoreos } = await api('monitoreos');
+  $('tablaMonitoreos').innerHTML = monitoreos.map(m => {
+    const clase = m.resultado === 'Abierto' ? 'open' : (m.resultado === 'Meta alcanzada' ? 'goal' : 'closed');
+    return `<tr><td><strong>${m.municipio}</strong><div style="color:var(--muted);font-size:11.5px;">${m.estado}</div></td>
+      <td><span class="status-pill ${clase}">${m.resultado}</span></td>
+      <td>${m.vip} VIP · ${m.free} Gratis</td><td>${m.frecuencia}</td></tr>`;
+  }).join('') || '<tr><td colspan="4">Sin monitoreos activos todavía.</td></tr>';
+}
+$('btnRefrescarMonitoreos').addEventListener('click', cargarMonitoreos);
+
+// --- Usuarios ---------------------------------------------------------------------
+async function cargarUsuarios() {
+  const { suscriptores } = await api('suscriptores');
+  $('totalUsuarios').textContent = suscriptores.length;
+  $('tablaUsuarios').innerHTML = suscriptores.map(s => `
+    <tr><td>${s.email}</td>
+      <td><span class="plan-pill ${s.plan === 'vip' ? 'plan-vip' : 'plan-free'}">${s.plan === 'vip' ? '★ VIP' : 'Gratis'}</span></td>
+      <td>${s.municipio}, ${s.estado}</td>
+      <td><span class="status-pill ${s.telegram_chat_id ? 'open' : 'error'}">${s.telegram_chat_id ? 'Vinculado' : 'Pendiente'}</span></td>
+      <td><span class="status-pill ${s.activo ? 'open' : 'error'}">${s.activo ? 'Sí' : 'No'}</span></td>
+      <td>${fecha(s.created_at)}</td></tr>`).join('');
+}
+$('btnRefrescarUsuarios').addEventListener('click', cargarUsuarios);
+
+// --- Alertas --------------------------------------------------------------------------
+async function cargarAlertas() {
+  const { historial, pendientesTelegram } = await api('alertas');
+  $('tablaAlertas').innerHTML = historial.map(h => `
+    <tr><td>${h.municipio}</td><td>${h.estado}</td>
+      <td>${h.estado_anterior}</td><td><strong>${h.estado_nuevo}</strong></td>
+      <td>${fecha(h.created_at)}</td></tr>`).join('') || '<tr><td colspan="5">Sin cambios registrados todavía.</td></tr>';
+  $('pendientesTexto').textContent = `${pendientesTelegram} suscriptor(es) activo(s) aún no vinculan su Telegram.`;
+}
+$('btnRefrescarAlertas').addEventListener('click', cargarAlertas);
+
+// --- Llamadas -------------------------------------------------------------------------
+function claseLlamada(resultado){
+  if (resultado === 'confirmada' || resultado === 'novedad_resuelta') return 'open';
+  if (resultado === 'pendiente' || resultado === 'requiere_atencion' || resultado === 'novedad') return 'goal';
+  return 'error';
+}
+async function cargarLlamadas() {
+  const { llamadas } = await api('llamadas');
+  $('tablaLlamadas').innerHTML = llamadas.map(l => `
+    <tr><td>${l.email || '—'}</td><td>${l.municipio}, ${l.estado}</td>
+      <td><span class="status-pill ${claseLlamada(l.resultado)}">${l.resultado}</span>${l.summary ? `<div style="color:var(--muted);font-size:11px;margin-top:3px;max-width:260px;">${l.summary}</div>` : ''}</td>
+      <td>${fecha(l.created_at)}</td></tr>`).join('') || '<tr><td colspan="4">Sin llamadas registradas todavía.</td></tr>';
+}
+$('btnRefrescarLlamadas').addEventListener('click', cargarLlamadas);
+
+// --- Pagos ---------------------------------------------------------------------------
+async function cargarPagos() {
+  const { pagos } = await api('pagos');
+  $('tablaPagos').innerHTML = pagos.map(p => `
+    <tr><td>${p.email}</td><td>${p.municipio}, ${p.estado}</td>
+      <td>${money(p.monto)}</td><td>Ciclo ${p.cycle_number}</td>
+      <td>${p.discount_percent ? p.discount_percent + '%' : '—'}</td>
+      <td>${fecha(p.vip_started_at || p.created_at)}</td><td>${fecha(p.finaliza)}</td></tr>`).join('') || '<tr><td colspan="7">Sin pagos VIP todavía.</td></tr>';
+}
+$('btnRefrescarPagos').addEventListener('click', cargarPagos);
+
+// --- Referidos ------------------------------------------------------------------------
+async function cargarReferidos() {
+  const data = await api('referidos');
+  $('refClics').textContent = data.totalClics;
+  $('refRegistros').textContent = data.totalRegistros;
+  $('refCompras').textContent = data.totalCompradores;
+  $('tablaReferidos').innerHTML = data.filas.map(f => `
+    <tr><td>${f.email}</td><td class="mono">${f.codigo}</td><td>${f.clics}</td>
+      <td>${f.registros}</td><td>${f.vip}</td><td><strong>${f.conversion}%</strong></td></tr>`).join('') || '<tr><td colspan="6">Todavía nadie ha compartido su código.</td></tr>';
+}
+$('btnRefrescarReferidos').addEventListener('click', cargarReferidos);
+
+// --- Ciclos y fechas --------------------------------------------------------------------
+async function cargarCiclos() {
+  const { config } = await api('config');
+  if (config) {
+    $('cfgRegistro').value = String(config.registro_abierto);
+    $('cfgInicio').value = config.periodo_inicio || '';
+    $('cfgFin').value = config.periodo_fin || '';
+    $('cfgEstimada').value = config.fecha_estimada_apertura || '';
+    $('cfgEncuesta').value = config.encuesta_fecha || '';
+    $('cfgSiguienteCiclo').value = config.siguiente_ciclo_fecha || '';
+    calcularFase(config);
+  }
+}
+function calcularFase(c){
+  const hoy = new Date().toISOString().slice(0,10);
+  let fase = 'Sin fechas configuradas', detalle = '';
+  if (c.periodo_inicio && hoy < c.periodo_inicio) { fase = 'Preparación'; detalle = `Arranca el ${fecha(c.periodo_inicio)}.`; }
+  else if (c.periodo_inicio && c.periodo_fin && hoy >= c.periodo_inicio && hoy <= c.periodo_fin) { fase = 'Ventana activa'; detalle = `Termina el ${fecha(c.periodo_fin)}.`; }
+  else if (c.encuesta_fecha && hoy <= c.encuesta_fecha) { fase = 'Encuesta'; detalle = 'Se pregunta a los VIP si encontraron su lugar.'; }
+  else if (c.periodo_fin && hoy > c.periodo_fin) { fase = 'Espera del siguiente ciclo'; detalle = c.siguiente_ciclo_fecha ? `Estimado: ${fecha(c.siguiente_ciclo_fecha)}.` : ''; }
+  $('faseActual').textContent = fase;
+  $('faseDetalle').textContent = detalle;
+}
+$('btnGuardarCiclos').addEventListener('click', async () => {
+  const msg = $('ciclosMsg'); msg.className = 'msg'; msg.textContent = 'Guardando…';
+  try {
+    const { config } = await api('config', 'POST', {
+      registro_abierto: $('cfgRegistro').value === 'true',
+      periodo_inicio: $('cfgInicio').value || null,
+      periodo_fin: $('cfgFin').value || null,
+      fecha_estimada_apertura: $('cfgEstimada').value || null,
+      encuesta_fecha: $('cfgEncuesta').value || null,
+      siguiente_ciclo_fecha: $('cfgSiguienteCiclo').value || null
+    });
+    msg.textContent = 'Guardado.'; msg.classList.add('ok');
+    calcularFase(config);
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.classList.add('error'); }
+});
+
+// --- Configuración (videos + toggles) ----------------------------------------------------
+async function cargarConfigScreen() {
+  const { config } = await api('config');
+  if (!config) return;
+  $('cfgVideo1').value = config.video1_url || '';
+  $('cfgVideo2').value = config.video2_url || '';
+  $('tgLectura').classList.toggle('on', config.mostrar_lectura_real !== false);
+  $('tgGuia').classList.toggle('on', config.incluir_guia_documentos !== false);
+  $('tgEncuesta').classList.toggle('on', config.enviar_encuesta_final !== false);
+}
+document.querySelectorAll('#config .toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
+$('btnGuardarVideos').addEventListener('click', async () => {
+  const msg = $('videosMsg'); msg.className = 'msg'; msg.textContent = 'Guardando…';
+  try { await api('config', 'POST', { video1_url: $('cfgVideo1').value.trim() || null, video2_url: $('cfgVideo2').value.trim() || null });
+    msg.textContent = 'Videos guardados.'; msg.classList.add('ok');
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.classList.add('error'); }
+});
+$('btnGuardarOpciones').addEventListener('click', async () => {
+  const msg = $('opcionesMsg'); msg.className = 'msg'; msg.textContent = 'Guardando…';
+  try {
+    await api('config', 'POST', {
+      mostrar_lectura_real: $('tgLectura').classList.contains('on'),
+      incluir_guia_documentos: $('tgGuia').classList.contains('on'),
+      enviar_encuesta_final: $('tgEncuesta').classList.contains('on')
+    });
+    msg.textContent = 'Opciones guardadas.'; msg.classList.add('ok');
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.classList.add('error'); }
+});
+</script>
+</body>
+</html>
