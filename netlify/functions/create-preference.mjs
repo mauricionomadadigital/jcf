@@ -2,7 +2,7 @@
 // Crea una preferencia de pago en MercadoPago para el plan VIP.
 // (El plan Gratis no pasa por aquí — ver register-free.mjs.)
 
-import { hashPassword, buscarSuscriptorPorEmail } from './lib/auth.mjs';
+import { hashPassword, buscarSuscriptorPorEmail, suscriptorDesdeToken, tokenDesdeRequest } from './lib/auth.mjs';
 import { registroEstaAbierto } from './lib/config.mjs';
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
@@ -18,41 +18,69 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: 'MP_ACCESS_TOKEN no configurado en Netlify.' }), { status: 500 });
   }
 
-  let email, estado, idedo, municipio, password, phone, referredBy;
-  try {
-    const body = await req.json();
-    email = (body.email || '').trim().toLowerCase();
-    estado = (body.estado || '').trim();
-    idedo = body.idedo;
-    municipio = (body.municipio || '').trim();
-    password = body.password || '';
-    phone = (body.phone || '').trim();
-    referredBy = (body.referredBy || '').trim().toUpperCase() || null;
-  } catch {
-    return new Response(JSON.stringify({ error: 'Body inválido.' }), { status: 400 });
+  // Si viene un token de sesión válido, esto es una ESCALADA de una
+  // cuenta que ya existe (normalmente Gratis -> VIP) — no se le vuelve a
+  // pedir nada que ya dio (correo, estado, municipio, nombre, contraseña),
+  // solo el teléfono si todavía no lo tenía (lo necesita la llamada VIP).
+  const cuentaLogueada = await suscriptorDesdeToken(tokenDesdeRequest(req));
+
+  let email, estado, idedo, municipio, password, phone, referredBy, nombre, telefonoPrefijo, passwordHash;
+
+  if (cuentaLogueada) {
+    let body = {};
+    try { body = await req.json(); } catch { /* body vacío también es válido aquí */ }
+    email = cuentaLogueada.email;
+    estado = cuentaLogueada.estado;
+    municipio = cuentaLogueada.municipio;
+    nombre = cuentaLogueada.nombre;
+    referredBy = cuentaLogueada.referred_by || null;
+    phone = (body.telefono || '').trim() || cuentaLogueada.phone || '';
+    telefonoPrefijo = (body.telefonoPrefijo || cuentaLogueada.telefono_prefijo || '+52').trim();
+    passwordHash = undefined; // no se toca la contraseña ya existente
+  } else {
+    try {
+      const body = await req.json();
+      email = (body.email || '').trim().toLowerCase();
+      estado = (body.estado || '').trim();
+      idedo = body.idedo;
+      municipio = (body.municipio || '').trim();
+      password = body.password || '';
+      phone = (body.phone || '').trim();
+      referredBy = (body.referredBy || '').trim().toUpperCase() || null;
+      nombre = (body.nombre || '').trim();
+      telefonoPrefijo = (body.telefonoPrefijo || '+52').trim();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Body inválido.' }), { status: 400 });
+    }
+    if (!nombre) {
+      return new Response(JSON.stringify({ error: 'Escribe tu nombre.' }), { status: 400 });
+    }
+    if (!email || !email.includes('@')) {
+      return new Response(JSON.stringify({ error: 'Email inválido.' }), { status: 400 });
+    }
+    if (!password || password.length < 8) {
+      return new Response(JSON.stringify({ error: 'La contraseña debe tener al menos 8 caracteres.' }), { status: 400 });
+    }
+    passwordHash = hashPassword(password);
   }
 
-  if (!email || !email.includes('@')) {
-    return new Response(JSON.stringify({ error: 'Email inválido.' }), { status: 400 });
-  }
-  if (!estado || !municipio || idedo === undefined) {
+  if (!estado || !municipio) {
     return new Response(JSON.stringify({ error: 'Debes elegir estado y municipio.' }), { status: 400 });
   }
-  if (!password || password.length < 8) {
-    return new Response(JSON.stringify({ error: 'La contraseña debe tener al menos 8 caracteres.' }), { status: 400 });
+  if (!phone || !/^\d{10}$/.test(phone)) {
+    return new Response(JSON.stringify({ error: 'Escribe tu teléfono a 10 dígitos para la llamada VIP.' }), { status: 400 });
   }
   if (!(await registroEstaAbierto())) {
     return new Response(JSON.stringify({ error: 'El registro está cerrado por ahora — vuelve a intentarlo más tarde.' }), { status: 403 });
   }
 
-  const passwordHash = hashPassword(password);
   const externalRef = `JCF-${Date.now()}-${email.replace(/[^a-z0-9]/gi, '').slice(0, 10)}`;
 
   // Si ya tiene una cuenta con un descuento pendiente (por ejemplo,
   // contestó en la encuesta que no logró su lugar en un ciclo VIP
   // anterior), este es el único lugar donde de verdad se calcula lo que
   // se cobra — antes se guardaba el descuento pero nunca se aplicaba.
-  const cuentaExistente = await buscarSuscriptorPorEmail(email);
+  const cuentaExistente = cuentaLogueada || await buscarSuscriptorPorEmail(email);
   const descuento = cuentaExistente?.plan === 'vip' ? (cuentaExistente.discount_percent || 0) : 0;
   const precioFinal = Math.round(PRECIO_VIP * (1 - descuento / 100) * 100) / 100;
 
@@ -82,6 +110,7 @@ export default async (req) => {
     // nunca la contraseña en texto plano, solo su hash.
     metadata: {
       email, estado, idedo, municipio, phone,
+      nombre, telefono_prefijo: telefonoPrefijo,
       password_hash: passwordHash,
       referred_by: referredBy,
       plan: 'vip',

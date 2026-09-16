@@ -55,7 +55,30 @@ export default async (req) => {
     if (req.method === 'POST' && action === 'municipio') {
       const { estado, municipio } = await req.json();
       if (!estado || !municipio) return json({ error: 'Elige estado y municipio.' }, 400);
-      const row = await actualizar(suscriptor.id, { estado, municipio });
+      const sinCambio = estado === suscriptor.estado && municipio === suscriptor.municipio;
+      if (!sinCambio && (suscriptor.cambios_municipio_restantes || 0) <= 0) {
+        return json({ error: 'Ya usaste tus 3 cambios de estado/municipio permitidos para esta cuenta.' }, 400);
+      }
+      const cambios = { estado, municipio };
+      if (!sinCambio) cambios.cambios_municipio_restantes = suscriptor.cambios_municipio_restantes - 1;
+      const row = await actualizar(suscriptor.id, cambios);
+      return json({ ok: true, suscriptor: sinPassword(row) });
+    }
+
+    if (req.method === 'POST' && action === 'perfil') {
+      const { nombre, telefono, telefonoPrefijo } = await req.json();
+      const cambios = {};
+      if (nombre !== undefined) {
+        const limpio = (nombre || '').trim();
+        if (!limpio) return json({ error: 'Escribe tu nombre.' }, 400);
+        cambios.nombre = limpio;
+      }
+      if (telefono !== undefined) {
+        if (telefono && !/^\d{6,12}$/.test(telefono)) return json({ error: 'Escribe un teléfono válido.' }, 400);
+        cambios.phone = telefono || null;
+      }
+      if (telefonoPrefijo !== undefined) cambios.telefono_prefijo = telefonoPrefijo || '+52';
+      const row = await actualizar(suscriptor.id, cambios);
       return json({ ok: true, suscriptor: sinPassword(row) });
     }
 

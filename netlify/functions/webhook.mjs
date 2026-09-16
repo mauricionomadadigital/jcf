@@ -93,7 +93,7 @@ async function insertarFila(datos) {
 //    telegram_chat_id y referral_code de su fila más reciente si ya
 //    existían, y desactivando cualquier fila que hubiera quedado activa
 //    para ese correo, de modo que nunca haya dos filas activas a la vez.
-async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, passwordHash, referredBy, monto }) {
+async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, passwordHash, referredBy, monto, nombre, telefonoPrefijo }) {
   const historial = await historialPorCorreo(email);
   const filaActiva = historial.find(f => f.activo);
   const cicloMaxVip = historial.reduce((max, f) => (f.plan === 'vip' ? Math.max(max, f.cycle_number || 0) : max), 0);
@@ -106,7 +106,6 @@ async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, pa
     estado,
     municipio,
     phone: phone || null,
-    password_hash: passwordHash || null,
     cycle_number: cicloMaxVip + 1,
     discount_percent: 0,
     monto: monto || null,
@@ -116,8 +115,14 @@ async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, pa
   };
 
   if (filaActiva && filaActiva.plan === 'free') {
+    // Escalada real de una cuenta ya existente — nunca se le pide de
+    // nuevo la contraseña, así que si no llegó una nueva (passwordHash
+    // undefined) se conserva la que ya tenía en vez de borrarla.
     const row = await actualizarFila(filaActiva.id, {
       ...camposComunes,
+      password_hash: passwordHash || filaActiva.password_hash,
+      nombre: nombre || filaActiva.nombre,
+      telefono_prefijo: telefonoPrefijo || filaActiva.telefono_prefijo,
       referred_by: filaActiva.referred_by || referredBy || null
     });
     return { row, yaVinculado: !!row.telegram_chat_id };
@@ -128,6 +133,9 @@ async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, pa
   const row = await insertarFila({
     email,
     ...camposComunes,
+    password_hash: passwordHash || null,
+    nombre: nombre || null,
+    telefono_prefijo: telefonoPrefijo || '+52',
     referral_code: filaConReferido?.referral_code || await generarCodigoReferido(),
     referred_by: filaConReferido?.referred_by || referredBy || null,
     telegram_chat_id: filaConChat?.telegram_chat_id || null
@@ -166,6 +174,8 @@ async function processPayment(paymentId) {
     phone: meta.phone,
     passwordHash: meta.password_hash,
     referredBy: meta.referred_by,
+    nombre: meta.nombre,
+    telefonoPrefijo: meta.telefono_prefijo,
     monto: payment.transaction_amount
   });
 

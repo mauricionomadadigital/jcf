@@ -53,7 +53,7 @@ export default async (req) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  let email, estado, municipio, password, referredBy;
+  let email, estado, municipio, password, referredBy, nombre, telefono, telefonoPrefijo;
   try {
     const body = await req.json();
     email = (body.email || '').trim().toLowerCase();
@@ -61,10 +61,16 @@ export default async (req) => {
     municipio = (body.municipio || '').trim();
     password = body.password || '';
     referredBy = (body.referredBy || '').trim().toUpperCase() || null;
+    nombre = (body.nombre || '').trim();
+    telefono = (body.telefono || '').trim();
+    telefonoPrefijo = (body.telefonoPrefijo || '+52').trim();
   } catch {
     return new Response(JSON.stringify({ error: 'Body inválido.' }), { status: 400 });
   }
 
+  if (!nombre) {
+    return new Response(JSON.stringify({ error: 'Escribe tu nombre.' }), { status: 400 });
+  }
   if (!email || !email.includes('@')) {
     return new Response(JSON.stringify({ error: 'Email inválido.' }), { status: 400 });
   }
@@ -73,6 +79,9 @@ export default async (req) => {
   }
   if (!password || password.length < 8) {
     return new Response(JSON.stringify({ error: 'La contraseña debe tener al menos 8 caracteres.' }), { status: 400 });
+  }
+  if (telefono && !/^\d{6,12}$/.test(telefono)) {
+    return new Response(JSON.stringify({ error: 'Escribe un teléfono válido.' }), { status: 400 });
   }
   if (!(await registroEstaAbierto())) {
     return new Response(JSON.stringify({ error: 'El registro está cerrado por ahora — vuelve a intentarlo más tarde.' }), { status: 403 });
@@ -99,7 +108,11 @@ export default async (req) => {
         plan: 'free',
         password_hash: hashPassword(password),
         referred_by: filaPrevia.referred_by || referredBy,
-        cycle_number: (filaPrevia.cycle_number || 1) + 1
+        cycle_number: (filaPrevia.cycle_number || 1) + 1,
+        nombre,
+        phone: telefono || filaPrevia.phone || null,
+        telefono_prefijo: telefono ? telefonoPrefijo : (filaPrevia.telefono_prefijo || '+52'),
+        cambios_municipio_restantes: 2
       });
     } else {
       const referralCode = await generarCodigoReferido();
@@ -115,7 +128,10 @@ export default async (req) => {
           password_hash: hashPassword(password),
           referral_code: referralCode,
           referred_by: referredBy,
-          cycle_number: 1
+          cycle_number: 1,
+          nombre,
+          phone: telefono || null,
+          telefono_prefijo: telefonoPrefijo
         })
       });
       if (!res.ok) throw new Error(await res.text());
