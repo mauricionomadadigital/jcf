@@ -2,6 +2,8 @@
 // Mismo parser que ya probaste en monitor-jcf-netlify (check-jcf), generalizado
 // para servir TODOS los estados y municipios, no solo Guanajuato.
 
+import { registrarFallo } from './fallos.mjs';
+
 export const DTMLP_URL = 'https://jovenesconstruyendoelfuturo.stps.gob.mx/focalizacion/dtmlp.js';
 
 function extraerVariable(scriptText, nombre) {
@@ -72,10 +74,14 @@ export async function enviarTelegram(token, chatId, mensaje) {
       body: JSON.stringify({ chat_id: chatId, text: mensaje })
     });
     const data = await resp.json();
-    if (!data.ok) console.error('Error Telegram:', data.description);
+    if (!data.ok) {
+      console.error('Error Telegram:', data.description);
+      await registrarFallo({ tipo: 'telegram', origen: 'enviarTelegram', detalle: `chat_id ${chatId}: ${data.description}` });
+    }
     return data.ok;
   } catch (err) {
     console.error('Fallo al llamar a Telegram:', err.message);
+    await registrarFallo({ tipo: 'telegram', origen: 'enviarTelegram', detalle: `chat_id ${chatId}: ${err.message}` });
     return false;
   }
 }

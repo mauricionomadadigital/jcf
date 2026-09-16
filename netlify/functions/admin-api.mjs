@@ -130,10 +130,16 @@ async function calcularStats() {
 }
 
 // --- Monitoreos activos ---------------------------------------------------
+function textoFrecuencia(min) {
+  if (min % 60 === 0) { const h = min / 60; return h === 1 ? '1 hora' : `${h} horas`; }
+  return `${min} minutos`;
+}
 async function calcularMonitoreos() {
-  const [suscriptores, { inicio, detmun }] = await Promise.all([listarSuscriptores(), descargarCatalogo()]);
+  const [suscriptores, { inicio, detmun }, config] = await Promise.all([listarSuscriptores(), descargarCatalogo(), getConfig()]);
   const estadoIdPorNombre = new Map((inicio || []).map(e => [normalizar(e.edo), e.idedo]));
   const activos = suscriptores.filter(s => s.activo);
+  const frecVip = textoFrecuencia(config?.vip_frecuencia_min || 10);
+  const frecFree = textoFrecuencia(config?.free_frecuencia_min || 120);
 
   const grupos = new Map();
   for (const s of activos) {
@@ -148,10 +154,9 @@ async function calcularMonitoreos() {
   return [...grupos.values()].map(g => ({
     ...g,
     resultado: buscarEstadoReal(estadoIdPorNombre, detmun, g.estado, g.municipio),
-    // check-jcf-nacional revisa a todos cada 5 minutos por igual — lo
-    // que distingue a VIP son los canales (correo + llamada), no la
-    // velocidad de detección.
-    frecuencia: '5 minutos'
+    // Si hay al menos un VIP en el grupo, ese municipio ya se revisa a la
+    // cadencia de VIP (más rápida) además de la de Free.
+    frecuencia: g.vip > 0 ? frecVip : frecFree
   })).sort((a, b) => (b.vip + b.free) - (a.vip + a.free));
 }
 
@@ -211,6 +216,16 @@ async function calcularAlertas() {
   return { historial, pendientesTelegram: pendientes.length };
 }
 
+// --- Fallos silenciosos (crons, Telegram, correo) -----------------------------
+async function calcularFallos() {
+  return sb('fallos_sistema?select=*&order=created_at.desc&limit=100');
+}
+
+// --- Cuentas archivadas (para exportar por fecha de cierre) -------------------
+async function calcularArchivados() {
+  return sb('suscriptores?activo=eq.false&select=email,municipio,estado,plan,discount_percent,periodos_inactivo,archivado_en,created_at&order=archivado_en.desc.nullslast&limit=1000');
+}
+
 export default async (req) => {
   if (req.headers.get('x-admin-password') !== ADMIN_PASSWORD) {
     return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
@@ -228,6 +243,8 @@ export default async (req) => {
     if (req.method === 'GET' && action === 'referidos') return json({ ok: true, ...(await calcularReferidos()) });
     if (req.method === 'GET' && action === 'llamadas') return json({ ok: true, llamadas: await calcularLlamadas() });
     if (req.method === 'GET' && action === 'alertas') return json({ ok: true, ...(await calcularAlertas()) });
+    if (req.method === 'GET' && action === 'fallos') return json({ ok: true, fallos: await calcularFallos() });
+    if (req.method === 'GET' && action === 'archivados') return json({ ok: true, archivados: await calcularArchivados() });
 
     if (req.method === 'POST' && action === 'config') {
       const body = await req.json();
@@ -235,7 +252,8 @@ export default async (req) => {
       [
         'registro_abierto', 'periodo_inicio', 'periodo_fin', 'fecha_estimada_apertura',
         'encuesta_fecha', 'siguiente_ciclo_fecha', 'video1_url', 'video2_url',
-        'mostrar_lectura_real', 'incluir_guia_documentos', 'enviar_encuesta_final'
+        'mostrar_lectura_real', 'incluir_guia_documentos', 'enviar_encuesta_final',
+        'vip_frecuencia_min', 'free_frecuencia_min'
       ].forEach(k => { if (body[k] !== undefined) permitido[k] = body[k]; });
       return json({ ok: true, config: await setConfig(permitido) });
     }

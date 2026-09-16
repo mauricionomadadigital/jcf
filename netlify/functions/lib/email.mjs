@@ -2,6 +2,8 @@
 // Envío de correo vía Resend, factorizado para reutilizarse desde
 // webhook.mjs (alta VIP) y register-free.mjs (alta Gratis).
 
+import { registrarFallo } from './fallos.mjs';
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-comercial.netlify.app';
 // Nota temporal (igual que en el proyecto original): mientras se compra
@@ -9,7 +11,11 @@ const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-comercial.netlify.
 const FROM = 'Monitor JCF <noreply@bookbuilderai.online>';
 
 export async function enviarCorreo(to, subject, html) {
-  if (!RESEND_API_KEY) { console.warn('RESEND_API_KEY no configurado'); return; }
+  if (!RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY no configurado');
+    await registrarFallo({ tipo: 'correo', origen: 'enviarCorreo', detalle: `RESEND_API_KEY no configurado (destinatario: ${to})` });
+    return;
+  }
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -18,7 +24,11 @@ export async function enviarCorreo(to, subject, html) {
     },
     body: JSON.stringify({ from: FROM, to, subject, html })
   });
-  if (!res.ok) console.error('Error enviando email:', await res.text());
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('Error enviando email:', err);
+    await registrarFallo({ tipo: 'correo', origen: 'enviarCorreo', detalle: `Para ${to} — asunto "${subject}": ${err}` });
+  }
 }
 
 export function plantillaBienvenida({ plan, municipio, estado, telegramLink }) {
@@ -33,7 +43,7 @@ export function plantillaBienvenida({ plan, municipio, estado, telegramLink }) {
         <p style="margin:0;color:#9aa7bd;font-size:13px;">Estado</p>
         <p style="margin:0;font-size:16px;">${estado}</p>
         <p style="margin:12px 0 0;color:#9aa7bd;font-size:13px;">Plan</p>
-        <p style="margin:0;font-size:16px;">${esVip ? '★ VIP — revisión cada 5 minutos + correo y llamada, activo 14 días' : 'Gratis — revisión cada 5 minutos por Telegram'}</p>
+        <p style="margin:0;font-size:16px;">${esVip ? '★ VIP — revisión frecuente + correo y llamada, activo 14 días' : 'Gratis — revisión periódica por Telegram'}</p>
       </div>
       <p><strong>Un último paso:</strong> vincula tu Telegram para recibir la alerta.</p>
       <p style="text-align:center;margin:24px 0;">
@@ -59,7 +69,7 @@ export function plantillaUpgradeVinculado({ municipio, estado }) {
         <p style="margin:0;color:#9aa7bd;font-size:13px;">Estado</p>
         <p style="margin:0;font-size:16px;">${estado}</p>
         <p style="margin:12px 0 0;color:#9aa7bd;font-size:13px;">Plan</p>
-        <p style="margin:0;font-size:16px;">★ VIP — revisión cada 5 minutos + correo y llamada, activo 14 días</p>
+        <p style="margin:0;font-size:16px;">★ VIP — revisión frecuente + correo y llamada, activo 14 días</p>
       </div>
       <p style="color:#9aa7bd;font-size:13px;margin-top:18px;">Entra a tu panel cuando quieras en <a href="${SITE_URL}/" style="color:#34d399;">tu cuenta</a> con este correo y tu contraseña.</p>
     </div>

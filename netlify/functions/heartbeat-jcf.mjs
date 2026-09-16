@@ -5,7 +5,8 @@
 // cerrado — para que el usuario sienta que el sistema está vivo,
 // sin inundarlo de alertas falsas cada 15 minutos.
 
-import { descargarCatalogo, estadoTexto, normalizar } from './lib/dtmlp.mjs';
+import { descargarCatalogo, estadoTexto, normalizar, enviarTelegram } from './lib/dtmlp.mjs';
+import { registrarFallo } from './lib/fallos.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -36,18 +37,6 @@ async function leerSuscriptoresActivos() {
   return res.json();
 }
 
-async function enviarTelegram(chatId, texto) {
-  try {
-    const resp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: texto })
-    });
-    const data = await resp.json();
-    return data.ok;
-  } catch { return false; }
-}
-
 export default async () => {
   try {
     const config = await leerConfiguracion();
@@ -75,6 +64,7 @@ export default async () => {
       if (estadoActual !== 'Cerrado') continue;
 
       const ok = await enviarTelegram(
+        TELEGRAM_BOT_TOKEN,
         s.telegram_chat_id,
         `✅ Seguimos vigilando ${s.municipio}, ${s.estado}\nEstado actual: Cerrado\nÚltima revisión: ${hora} hrs\n\nTe avisaremos en cuanto abra.`
       );
@@ -84,6 +74,7 @@ export default async () => {
     return new Response(JSON.stringify({ ok: true, revisados: suscriptores.length, enviados }));
   } catch (err) {
     console.error('Error heartbeat-jcf:', err.message);
+    await registrarFallo({ tipo: 'cron', origen: 'heartbeat-jcf', detalle: err.message });
     return new Response(JSON.stringify({ ok: false, error: err.message }));
   }
 };

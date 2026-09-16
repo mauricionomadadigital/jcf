@@ -52,7 +52,13 @@ de correr las migraciones (paso 3).
 
 ---
 
-## 2. Supabase — correr las dos migraciones, en orden
+## 2. Supabase — correr las migraciones, en orden
+
+**Nota:** si el proyecto de Supabase está vacío (no es el mismo que ya
+usa el sistema en producción), corre primero `sql/001_esquema_base.sql`
+— crea las tablas base (`suscriptores`, `configuracion`,
+`historial_cambios`) que el sistema original creó a mano. Si ya tienes
+esas tablas, sáltatelo.
 
 Con la CLI de Supabase (si el proyecto ya está vinculado):
 
@@ -66,8 +72,11 @@ y ejecútalos uno por uno, en este orden:
 
 1. `sql/002_comercial_v2.sql`
 2. `sql/003_talkyria_real.sql`
+3. `sql/004_frecuencias_bajas_fallos.sql` — frecuencias configurables por
+   plan, baja/reactivación de cuentas, purga a los 3 periodos inactivo,
+   bloqueo de login y bitácora de fallos.
 
-Ambas son aditivas (agregan columnas y tablas nuevas con
+Todas son aditivas (agregan columnas y tablas nuevas con
 `if not exists`) — no borran ni tocan datos existentes. Es seguro
 correrlas más de una vez por accidente.
 

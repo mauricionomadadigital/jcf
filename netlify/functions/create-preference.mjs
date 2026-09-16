@@ -62,8 +62,8 @@ export default async (req) => {
         id: 'monitor-jcf-vip',
         title: `Monitor JCF VIP — ${municipio}, ${estado}`,
         description: descuento > 0
-          ? `Revisión cada 5 minutos + correo y llamada cuando abra tu municipio, activo 14 días — ${descuento}% de descuento aplicado`
-          : 'Revisión cada 5 minutos + correo y llamada cuando abra tu municipio, activo 14 días',
+          ? `Revisión frecuente + correo y llamada cuando abra tu municipio, activo 14 días — ${descuento}% de descuento aplicado`
+          : 'Revisión frecuente + correo y llamada cuando abra tu municipio, activo 14 días',
         quantity: 1,
         currency_id: 'MXN',
         unit_price: precioFinal

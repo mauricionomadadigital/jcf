@@ -105,6 +105,25 @@ export default async (req) => {
       return json({ ok: true, suscriptor: sinPassword(row) });
     }
 
+    if (req.method === 'POST' && action === 'reactivar') {
+      if (suscriptor.activo) return json({ error: 'Tu cuenta ya está activa.' }, 400);
+      const row = await actualizar(suscriptor.id, { activo: true, periodos_inactivo: 0, archivado_en: null });
+      return json({ ok: true, suscriptor: sinPassword(row) });
+    }
+
+    // Borra el registro por completo — es lo que el usuario pidió como
+    // "darse de baja": sin periodo de gracia, no se puede deshacer. Las
+    // sesiones se van solas (on delete cascade) y sus llamadas pasadas
+    // quedan en el admin sin nombre asociado (on delete set null).
+    if (req.method === 'POST' && action === 'baja') {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${suscriptor.id}`, {
+        method: 'DELETE',
+        headers: headersSupabase()
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return json({ ok: true });
+    }
+
     if (req.method === 'GET' && action === 'referidos') {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/suscriptores?referred_by=eq.${encodeURIComponent(suscriptor.referral_code || '')}&select=plan,created_at`,

@@ -2293,6 +2293,16 @@
               /></svg
             >Configuración
           </button>
+          <button
+            class="nav-btn"
+            data-screen="system-errors"
+            data-title="Fallos del sistema"
+            data-subtitle="Crons, Telegram y correo que no se entregaron"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg
+            >Fallos
+          </button>
         </nav>
         <div class="nav-label" style="margin-top: 22px">Cliente</div>
         <nav class="nav">
@@ -2427,6 +2437,7 @@
                 ><button class="tab-btn" data-plan-tab="vip">VIP</button>
               </div>
               <div class="search"><input id="userSearch" placeholder="Buscar por correo o municipio" /></div>
+              <button class="btn btn-secondary" id="btnExportarArchivados">Exportar archivados (CSV)</button>
             </div>
             <article class="card table-card">
               <div class="table-wrap">
@@ -2654,16 +2665,34 @@
                 </div>
                 <div class="integration">
                   <div class="integration-logo mail">✉</div>
-                  <div><strong>Resend (correo)</strong><small>Altas Gratis/VIP y avisos de apertura VIP</small></div>
+                  <div><strong>Resend (correo)</strong><small>Altas Gratis/VIP y avisos de apertura, ambos planes</small></div>
                 </div>
               </article>
               <article class="card setting-card">
-                <h3>Reglas de los planes</h3>
-                <p>Intervalos fijos del programador de revisiones.</p>
-                <div class="field"><label>Frecuencia del plan Gratis</label><input value="Cada 5 minutos por Telegram" readonly /></div>
-                <div class="field"><label>Frecuencia del plan VIP</label><input value="Cada 5 minutos — además correo y llamada, activo 14 días" readonly /></div>
-                <div class="field"><label>Precio VIP</label><input value="$100 MXN · 14 días" readonly /></div>
-                <div class="notice">Estas reglas están fijas en el código — cambiarlas requiere ajustar las funciones, no solo este panel.</div>
+                <h3>Frecuencia de revisión por plan</h3>
+                <p>El cron corre cada 5 minutos, pero cada plan solo se procesa cuando le toca según esto. Cambia aquí sin necesitar redeploy.</p>
+                <div class="field">
+                  <label for="cfgFrecVip">Plan VIP — cada</label>
+                  <select id="cfgFrecVip">
+                    <option value="5">5 minutos</option>
+                    <option value="10">10 minutos</option>
+                    <option value="15">15 minutos</option>
+                    <option value="30">30 minutos</option>
+                    <option value="60">60 minutos</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="cfgFrecFree">Plan Gratis — cada</label>
+                  <select id="cfgFrecFree">
+                    <option value="30">30 minutos</option>
+                    <option value="60">1 hora</option>
+                    <option value="120">2 horas</option>
+                    <option value="240">4 horas</option>
+                  </select>
+                </div>
+                <button class="btn btn-secondary" id="btnGuardarFrecuencias">Guardar frecuencias</button>
+                <div class="field" style="margin-top:10px;"><label>Precio VIP</label><input value="$100 MXN · 14 días" readonly /></div>
+                <div class="notice">Ambos planes reciben Telegram + correo cuando su municipio abre. Solo VIP recibe además llamada y recordatorios reforzados — eso, y la velocidad, es lo que diferencia el plan pagado.</div>
               </article>
               <article class="card setting-card">
                 <h3>Regla de llamada</h3>
@@ -2688,6 +2717,25 @@
                 </div>
               </article>
             </div>
+          </section>
+
+          <section class="screen" id="system-errors">
+            <div class="screen-heading">
+              <h2>Fallos del sistema</h2>
+              <p>Crons que truenan, o Telegram/correo que no se pudo entregar — antes esto solo quedaba en los logs de Netlify, invisible salvo que un usuario reclamara.</p>
+            </div>
+            <article class="card table-card">
+              <div class="card-head">
+                <div><h2>Últimos 100 fallos</h2><p>Se registra el tipo, dónde ocurrió y el detalle del error.</p></div>
+                <button class="btn btn-secondary" id="btnRefrescarFallos">Actualizar</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Tipo</th><th>Origen</th><th>Detalle</th><th>Fecha y hora</th></tr></thead>
+                  <tbody id="tablaFallos"></tbody>
+                </table>
+              </div>
+            </article>
           </section>
 
         </div>
@@ -2762,7 +2810,7 @@ function arrancar(){
 const CARGADORES = {
   dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios,
   alerts: cargarAlertas, calls: cargarLlamadas, payments: cargarPagos,
-  referrals: cargarReferidos, cycles: cargarCiclos
+  referrals: cargarReferidos, cycles: cargarCiclos, 'system-errors': cargarFallos
 };
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
@@ -2829,7 +2877,7 @@ async function cargarResumen() {
       <div class="stat-label">Usuarios activos</div><div class="stat-value">${stats.usuariosActivos}</div><div class="stat-line"></div></article>
     <article class="stat"><div class="stat-head"><div class="stat-icon si-green">${iconoStat('vip')}</div><span class="delta">${stats.usuariosActivos ? Math.round(stats.vip/stats.usuariosActivos*1000)/10 : 0}% conversión</span></div>
       <div class="stat-label">Suscripciones VIP</div><div class="stat-value">${stats.vip}</div><div class="stat-line" style="background:var(--green);width:${stats.usuariosActivos ? Math.round(stats.vip/stats.usuariosActivos*100) : 0}%"></div></article>
-    <article class="stat"><div class="stat-head"><div class="stat-icon si-amber">${iconoStat('municipios')}</div><span class="delta neutral">cada 5 min</span></div>
+    <article class="stat"><div class="stat-head"><div class="stat-icon si-amber">${iconoStat('municipios')}</div></div>
       <div class="stat-label">Municipios vigilados</div><div class="stat-value">${stats.municipiosVigilados}</div><div class="stat-line" style="background:var(--amber);width:70%"></div></article>
     <article class="stat"><div class="stat-head"><div class="stat-icon si-purple">${iconoStat('ingresos')}</div></div>
       <div class="stat-label">Ingresos del periodo</div><div class="stat-value">${money(stats.ingresosPeriodo)}</div><div class="stat-line" style="background:var(--purple);width:82%"></div></article>`;
@@ -2906,6 +2954,17 @@ async function cargarUsuarios() {
   SUSCRIPTORES_CACHE = suscriptores;
   pintarUsuarios();
 }
+$('btnExportarArchivados').addEventListener('click', async () => {
+  try {
+    const { archivados } = await api('archivados');
+    descargarCSV('suscriptores-archivados.csv', archivados, [
+      {titulo:'Correo', campo:'email'}, {titulo:'Plan', campo:'plan'},
+      {titulo:'Municipio', campo:'municipio'}, {titulo:'Estado', campo:'estado'},
+      {titulo:'Descuento', campo:'discount_percent'}, {titulo:'Periodos inactivo', campo:'periodos_inactivo'},
+      {titulo:'Archivado en', campo:'archivado_en'}, {titulo:'Alta original', campo:'created_at'}
+    ]);
+  } catch (err) { notify('Error: ' + err.message); }
+});
 document.querySelectorAll('[data-plan-tab]').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('[data-plan-tab]').forEach(x => x.classList.remove('active'));
   b.classList.add('active'); FILTRO_PLAN = b.dataset.planTab; pintarUsuarios();
@@ -2949,6 +3008,17 @@ async function cargarLlamadas() {
       <td class="muted">${l.summary || '—'}</td>
       <td>${fecha(l.created_at)} ${horaCorta(l.created_at)}</td></tr>`).join('') || '<tr><td colspan="5">Sin llamadas registradas todavía.</td></tr>';
 }
+
+// --- Fallos del sistema ------------------------------------------------------------
+const ETIQUETA_FALLO = { cron: '⏱ Cron', telegram: '✈ Telegram', correo: '✉ Correo' };
+async function cargarFallos() {
+  const { fallos } = await api('fallos');
+  $('tablaFallos').innerHTML = fallos.map(f => `
+    <tr><td>${ETIQUETA_FALLO[f.tipo] || f.tipo}</td><td>${f.origen || '—'}</td>
+      <td class="muted">${f.detalle || '—'}</td>
+      <td>${fecha(f.created_at)} ${horaCorta(f.created_at)}</td></tr>`).join('') || '<tr><td colspan="4">Sin fallos registrados — buena señal.</td></tr>';
+}
+$('btnRefrescarFallos').addEventListener('click', () => cargarFallos().catch(err => notify('Error: ' + err.message)));
 
 // --- Pagos ---------------------------------------------------------------------------
 async function cargarPagos() {
@@ -2999,6 +3069,8 @@ async function cargarCiclos() {
   $('cfgSiguienteCiclo').value = CONFIG_CACHE.siguiente_ciclo_fecha || '';
   $('cfgVideo1').value = CONFIG_CACHE.video1_url || '';
   $('cfgVideo2').value = CONFIG_CACHE.video2_url || '';
+  $('cfgFrecVip').value = String(CONFIG_CACHE.vip_frecuencia_min || 10);
+  $('cfgFrecFree').value = String(CONFIG_CACHE.free_frecuencia_min || 120);
   $('tgLectura').classList.toggle('on', CONFIG_CACHE.mostrar_lectura_real !== false);
   $('tgGuia').classList.toggle('on', CONFIG_CACHE.incluir_guia_documentos !== false);
   $('tgEncuesta').classList.toggle('on', CONFIG_CACHE.enviar_encuesta_final !== false);
@@ -3030,7 +3102,7 @@ function calcularFase(c){
 }
 const PREVIEWS = {
   prep: ['Mensaje de preparación · Gratis', 'Faltan varios días. Haz tu preregistro y ten listos tus documentos. Te sugerimos activar VIP antes de la apertura.'],
-  active: ['Mensaje de apertura · VIP', 'Tu municipio aparece abierto. Se envía Telegram, correo y una llamada única. Gratis recibe Telegram en su siguiente revisión.'],
+  active: ['Mensaje de apertura', 'VIP: Telegram + correo + llamada única, revisando cada pocos minutos. Gratis: Telegram + correo también, pero en su siguiente revisión (cada 1-2 horas).'],
   survey: ['Seguimiento VIP', '¿Lograste encontrar y apartar tu lugar? Si no, se activa 50% para el siguiente ciclo; un segundo intento sin éxito habilita 70%.']
 };
 function mostrarPreview(fase){
@@ -3065,6 +3137,16 @@ $('btnGuardarVideos').addEventListener('click', async () => {
     await api('config', 'POST', { video1_url: $('cfgVideo1').value.trim() || null, video2_url: $('cfgVideo2').value.trim() || null });
     msg.textContent = 'Videos guardados.'; notify('Videos guardados');
   } catch (err) { msg.textContent = 'Error: ' + err.message; }
+});
+$('btnGuardarFrecuencias').addEventListener('click', async () => {
+  try {
+    const { config } = await api('config', 'POST', {
+      vip_frecuencia_min: Number($('cfgFrecVip').value),
+      free_frecuencia_min: Number($('cfgFrecFree').value)
+    });
+    CONFIG_CACHE = config;
+    notify('Frecuencias guardadas — el cron las respeta desde la próxima corrida, sin redeploy.');
+  } catch (err) { notify('Error: ' + err.message); }
 });
 </script>
   </body>

@@ -2182,7 +2182,7 @@
             <button type="button" class="active" data-plan="free">Gratis</button>
             <button type="button" data-plan="vip">★ VIP</button>
           </div>
-          <p id="planDesc" style="font-size:12.5px;color:#718096;margin:4px 0 10px;">Revisión cada 5 minutos por Telegram — sin costo.</p>
+          <p id="planDesc" style="font-size:12.5px;color:#718096;margin:4px 0 10px;">Revisión cada 2 horas por Telegram — sin costo.</p>
           <div class="field"><label for="regEstado">Estado</label><select id="regEstado" disabled><option>Cargando estados…</option></select></div>
           <div class="field"><label for="regMunicipio">Municipio</label><select id="regMunicipio" disabled><option>Elige primero tu estado</option></select></div>
           <div class="field"><label for="regEmail">Tu correo</label><input id="regEmail" type="email" autocomplete="email" /></div>
@@ -2218,6 +2218,10 @@
           <p>Administra el municipio y los avisos que quieres recibir.</p>
         </div>
         <span class="plan-pill plan-free" id="badgePlan" style="align-self:flex-start;">Plan</span>
+      </div>
+      <div id="cuentaInactivaBanner" class="oculto" style="background:#fff0ea;border:1px solid #f6c4a8;color:#8a3c1c;border-radius:11px;padding:12px 14px;font-size:13px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span>Tu cuenta está archivada — dejaste de recibir avisos cuando cerró un ciclo anterior.</span>
+        <button class="btn btn-secondary" id="btnReactivarCuenta">Reactivar mi cuenta</button>
       </div>
       <div class="portal-tabs" aria-label="Secciones del panel del usuario">
         <button class="active" data-scroll-customer="monitoring">Mi monitoreo</button>
@@ -2352,8 +2356,8 @@
 
         <aside>
           <article class="upgrade-card" id="upgradeCard">
-            <h3>⚡ No dependas solo de Telegram</h3>
-            <p>Con VIP, cuando tu municipio abre te avisamos también por correo y con una llamada — 14 días de cobertura completa.</p>
+            <h3>⚡ Entérate mucho más rápido</h3>
+            <p>VIP revisa muchas más veces por hora que Gratis, y además de Telegram y correo te llamamos por teléfono en cuanto abra tu municipio — 14 días de cobertura completa.</p>
             <button class="btn" id="upgradeButton">Subir a VIP — $100 MXN</button>
           </article>
 
@@ -2414,6 +2418,12 @@
             <div class="msg" id="passwordMsg" style="font-size:12px;margin-top:8px;"></div>
             <div class="notice">Debe tener al menos 8 caracteres. Si entraste con Google, la contraseña se administra desde tu cuenta de Google.</div>
           </article>
+
+          <article class="portal-card section-anchor" style="margin-top: 16px;border-color:#f6c4a8;">
+            <h3 style="color:#c0491f;">Zona de riesgo</h3>
+            <p>Dar de baja borra tu cuenta por completo — dejarás de recibir mensajes en Telegram y correo. No se puede deshacer.</p>
+            <button class="btn" style="background:#c0491f;color:#fff;width:100%;justify-content:center;" id="btnDarseDeBaja">Dar de baja mi cuenta</button>
+          </article>
         </aside>
       </div>
       <div class="mobile-upgrade" id="mobileUpgrade">
@@ -2437,7 +2447,7 @@ async function apiAuth(action, method='GET', body=null) {
     body: body ? JSON.stringify(body) : undefined
   });
   const data = await resp.json();
-  if (!resp.ok) throw new Error(data.error || 'Error desconocido');
+  if (!resp.ok) { const err = new Error(data.error || 'Error desconocido'); err.bloqueado = data.bloqueado; throw err; }
   return data;
 }
 async function apiCliente(action, method='GET', body=null) {
@@ -2457,11 +2467,30 @@ $('btnIrRegistro').addEventListener('click', mostrarRegistro);
 $('btnIrLogin').addEventListener('click', mostrarLogin);
 
 // --- Plan (dentro del registro) ---------------------------------------------
+let FRECUENCIAS_PUBLICAS = { vip_frecuencia_min: 10, free_frecuencia_min: 120 };
+function textoFrecuenciaReg(min){
+  if (min % 60 === 0) { const h = min / 60; return h === 1 ? '1 hora' : `${h} horas`; }
+  return `${min} minutos`;
+}
+function actualizarDescripcionPlan(){
+  const vip = PLAN === 'vip';
+  const frec = textoFrecuenciaReg(vip ? FRECUENCIAS_PUBLICAS.vip_frecuencia_min : FRECUENCIAS_PUBLICAS.free_frecuencia_min);
+  $('planDesc').textContent = vip
+    ? `Cada ${frec} — Telegram + correo + llamada, 14 días.`
+    : `Revisión cada ${frec} por Telegram — sin costo.`;
+}
+(async () => {
+  try {
+    const r = await fetch('/.netlify/functions/config-publica');
+    FRECUENCIAS_PUBLICAS = await r.json();
+    actualizarDescripcionPlan();
+  } catch {}
+})();
 document.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => {
   PLAN = b.dataset.plan;
   document.querySelectorAll('[data-plan]').forEach(x => x.classList.toggle('active', x === b));
   const vip = PLAN === 'vip';
-  $('planDesc').textContent = vip ? 'Cada 5 minutos — Telegram + correo + llamada, 14 días.' : 'Revisión cada 5 minutos por Telegram — sin costo.';
+  actualizarDescripcionPlan();
   $('campoTelefonoReg').classList.toggle('oculto', !vip);
   $('precioLbl').textContent = vip ? 'Plan VIP · 14 días' : 'Plan Gratis';
   $('precioTxt').textContent = vip ? '$100.00 MXN' : '$0.00 MXN';
@@ -2600,7 +2629,13 @@ $('emailLogin').addEventListener('submit', async (e) => {
     const { token, suscriptor } = await apiAuth('login', 'POST', { email: $('loginEmail').value.trim(), password: $('loginPassword').value });
     TOKEN = token; localStorage.setItem('jcf_token', token); CUENTA = suscriptor;
     await entrarAlPanel();
-  } catch (err) { msg.textContent = err.message; }
+  } catch (err) {
+    msg.textContent = err.message;
+    // Tras 5 intentos fallidos, el backend bloquea el login — llevamos
+    // directo a recuperar contraseña en vez de dejar a la persona
+    // reintentando sin salida.
+    if (err.bloqueado) $('recoverPassword').click();
+  }
 });
 $('recoverPassword').addEventListener('click', async () => {
   const email = $('loginEmail').value.trim();
@@ -2657,13 +2692,12 @@ async function entrarAlPanel(){
   cargarVideos();
 }
 function renderPlan(){
+  $('cuentaInactivaBanner').classList.toggle('oculto', CUENTA.activo !== false);
   const esVip = CUENTA.plan === 'vip';
   $('badgePlan').textContent = esVip ? '★ Plan VIP' : 'Plan Gratis';
   $('badgePlan').className = 'plan-pill ' + (esVip ? 'plan-vip' : 'plan-free');
   $('customerPlanChip').textContent = esVip ? '★ Plan VIP' : 'Plan Gratis';
   $('customerPlanChip').className = 'plan-pill ' + (esVip ? 'plan-vip' : 'plan-free');
-  $('planFrequency').textContent = 'Revisión cada 5 minutos';
-  $('planFrequency2').textContent = '5 minutos';
   $('upgradeCard').classList.toggle('oculto', esVip);
   $('mobileUpgrade').classList.toggle('oculto', esVip);
   $('vipFeedback').classList.toggle('oculto', !esVip);
@@ -2690,12 +2724,20 @@ async function cargarReferidos(){
     $('refClics').textContent = data.clics; $('refRegistros').textContent = data.registros; $('refVip').textContent = data.vip;
   } catch {}
 }
+function textoFrecuencia(min){
+  if (min % 60 === 0) { const h = min / 60; return h === 1 ? '1 hora' : `${h} horas`; }
+  return `${min} minutos`;
+}
 async function cargarVideos(){
   try {
     const resp = await fetch('/.netlify/functions/config-publica');
     const data = await resp.json();
     if (data.video1_url) { $('video1Link').href = data.video1_url; $('video1Placeholder').innerHTML = `<a href="${data.video1_url}" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;">▶ Ver tutorial 1</a>`; }
     if (data.video2_url) { $('video2Link').href = data.video2_url; $('video2Placeholder').innerHTML = `<a href="${data.video2_url}" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;">▶ Ver tutorial 2</a>`; }
+    const esVip = CUENTA?.plan === 'vip';
+    const frecTexto = textoFrecuencia(esVip ? (data.vip_frecuencia_min || 10) : (data.free_frecuencia_min || 120));
+    $('planFrequency').textContent = `Revisión cada ${frecTexto}`;
+    $('planFrequency2').textContent = frecTexto;
   } catch {}
 }
 
@@ -2715,6 +2757,23 @@ $('customerLogout').addEventListener('click', async () => {
   try { await apiAuth('logout', 'POST'); } catch {}
   TOKEN=''; localStorage.removeItem('jcf_token');
   location.href = '/';
+});
+$('btnReactivarCuenta').addEventListener('click', async () => {
+  try {
+    const { suscriptor } = await apiCliente('reactivar', 'POST');
+    CUENTA = suscriptor;
+    renderPlan();
+    alert('¡Listo! Tu cuenta quedó activa de nuevo.');
+  } catch (err) { alert('Error: ' + err.message); }
+});
+$('btnDarseDeBaja').addEventListener('click', async () => {
+  if (!confirm('¿Seguro que quieres darte de baja? Se borra tu cuenta por completo y no se puede deshacer.')) return;
+  try {
+    await apiCliente('baja', 'POST');
+    TOKEN=''; localStorage.removeItem('jcf_token');
+    alert('Tu cuenta fue eliminada. Gracias por haber usado Monitor JCF.');
+    location.href = '/';
+  } catch (err) { alert('Error: ' + err.message); }
 });
 
 // --- Canales ---------------------------------------------------------------------

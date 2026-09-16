@@ -27,6 +27,14 @@ function sinPassword(suscriptor) {
   return resto;
 }
 
+async function marcarIntentoFallido(id, intentos) {
+  await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+    body: JSON.stringify({ intentos_fallidos: intentos })
+  });
+}
+
 async function buscarPorEmail(email) {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/suscriptores?email=eq.${encodeURIComponent(email)}&select=*&order=created_at.desc&limit=1`,
@@ -48,9 +56,27 @@ export default async (req) => {
     if (req.method === 'POST' && action === 'login') {
       const { email, password } = await req.json();
       const suscriptor = await buscarPorEmail((email || '').trim().toLowerCase());
+
+      // No revelamos si el correo existe o no en el mensaje de error —
+      // solo distinguimos el bloqueo cuando SÍ hay una cuenta con 5
+      // intentos fallidos acumulados.
+      if (suscriptor && (suscriptor.intentos_fallidos || 0) >= 5) {
+        return json({ error: 'Demasiados intentos fallidos. Recupera tu contraseña para volver a entrar.', bloqueado: true }, 423);
+      }
+
       if (!suscriptor || !verifyPassword(password || '', suscriptor.password_hash)) {
+        if (suscriptor) {
+          const intentos = (suscriptor.intentos_fallidos || 0) + 1;
+          await marcarIntentoFallido(suscriptor.id, intentos);
+          if (intentos >= 5) {
+            return json({ error: 'Demasiados intentos fallidos. Recupera tu contraseña para volver a entrar.', bloqueado: true }, 423);
+          }
+          return json({ error: `Correo o contraseña incorrectos. Te quedan ${5 - intentos} intento(s).` }, 401);
+        }
         return json({ error: 'Correo o contraseña incorrectos.' }, 401);
       }
+
+      if (suscriptor.intentos_fallidos) await marcarIntentoFallido(suscriptor.id, 0);
       const token = await crearSesion(suscriptor.id);
       return json({ ok: true, token, suscriptor: sinPassword(suscriptor) });
     }
@@ -110,7 +136,7 @@ export default async (req) => {
       await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${fila.id}`, {
         method: 'PATCH',
         headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-        body: JSON.stringify({ password_hash: hashPassword(newPassword), reset_token: null, reset_token_expires: null })
+        body: JSON.stringify({ password_hash: hashPassword(newPassword), reset_token: null, reset_token_expires: null, intentos_fallidos: 0 })
       });
       return json({ ok: true });
     }

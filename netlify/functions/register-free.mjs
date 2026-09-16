@@ -1,9 +1,11 @@
 // netlify/functions/register-free.mjs
-// Alta del plan Gratis: sin pago, misma detección de 5 minutos que VIP
-// por Telegram — lo que no incluye es correo ni llamada, exclusivos de
-// VIP. Crea la cuenta directo (correo + contraseña), o reactiva una
-// cuenta archivada de un ciclo anterior, y manda el mismo correo con el
-// link de Telegram que recibe un VIP, solo que sin cobrar nada.
+// Alta del plan Gratis: sin pago, revisión más espaciada que VIP (por
+// defecto cada 2 horas vs. 10 minutos — configurable en el panel admin,
+// ver check-jcf-nacional.mjs). Recibe Telegram y correo igual que VIP;
+// lo que no incluye es la llamada automática, exclusiva de VIP. Crea la
+// cuenta directo (correo + contraseña), o reactiva una cuenta archivada
+// de un ciclo anterior, y manda el mismo correo con el link de Telegram
+// que recibe un VIP, solo que sin cobrar nada.
 
 import { hashPassword, generarCodigoReferido } from './lib/auth.mjs';
 import { enviarCorreo, plantillaBienvenida } from './lib/email.mjs';
