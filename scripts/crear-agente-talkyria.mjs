@@ -65,15 +65,38 @@ async function main() {
       useCustomPrompt: true,
       customPrompt: PROMPT_AVISO,
       enableVoicemailDetection: true,
-      maxCallDuration: 30
+      maxCallDuration: 30,
+      isActive: true
     })
   });
-  const agente = await createRes.json();
+  const body = await createRes.json();
   if (!createRes.ok) {
-    console.error('No se pudo crear el agente:', agente.code, agente.message);
+    console.error('No se pudo crear el agente:', body.code, body.message);
     process.exit(1);
   }
+  // La API a veces envuelve la respuesta (p.ej. { agent: {...} }) en vez de
+  // devolver el agente directo con "id" en la raíz — cubrimos ambos casos.
+  const agente = body.agent || body.data || body;
+  if (!agente.id) {
+    console.warn('   Aviso: no se encontró "id" en la respuesta. Respuesta completa:', JSON.stringify(body));
+  }
   console.log('   OK — agente creado con id:', agente.id);
+
+  if (agente.isActive === false) {
+    console.log('   Activando el agente (isActive: true)...');
+    const actRes = await fetch(`${APP_BASE}/agents/${agente.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ isActive: true })
+    });
+    if (!actRes.ok) {
+      const errAct = await actRes.json().catch(() => ({}));
+      console.warn('   No se pudo activar el agente automáticamente:', errAct.code, errAct.message);
+      console.warn('   Actívalo a mano en el panel de Talkyria antes de usarlo en llamadas.');
+    } else {
+      console.log('   OK — agente activado.');
+    }
+  }
 
   console.log('3) Ajustando configuración avanzada (PATCH /agents/:id/advanced)...');
   const advRes = await fetch(`${APP_BASE}/agents/${agente.id}/advanced`, {
