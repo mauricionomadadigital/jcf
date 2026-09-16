@@ -2,7 +2,7 @@
 // Crea una preferencia de pago en MercadoPago para el plan VIP.
 // (El plan Gratis no pasa por aquí — ver register-free.mjs.)
 
-import { hashPassword } from './lib/auth.mjs';
+import { hashPassword, buscarSuscriptorPorEmail } from './lib/auth.mjs';
 import { registroEstaAbierto } from './lib/config.mjs';
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
@@ -48,15 +48,25 @@ export default async (req) => {
   const passwordHash = hashPassword(password);
   const externalRef = `JCF-${Date.now()}-${email.replace(/[^a-z0-9]/gi, '').slice(0, 10)}`;
 
+  // Si ya tiene una cuenta con un descuento pendiente (por ejemplo,
+  // contestó en la encuesta que no logró su lugar en un ciclo VIP
+  // anterior), este es el único lugar donde de verdad se calcula lo que
+  // se cobra — antes se guardaba el descuento pero nunca se aplicaba.
+  const cuentaExistente = await buscarSuscriptorPorEmail(email);
+  const descuento = cuentaExistente?.plan === 'vip' ? (cuentaExistente.discount_percent || 0) : 0;
+  const precioFinal = Math.round(PRECIO_VIP * (1 - descuento / 100) * 100) / 100;
+
   const preference = {
     items: [
       {
         id: 'monitor-jcf-vip',
         title: `Monitor JCF VIP — ${municipio}, ${estado}`,
-        description: 'Revisión cada 10 minutos y alerta por Telegram + correo + llamada cuando abra tu municipio',
+        description: descuento > 0
+          ? `Revisión cada 5 minutos + correo y llamada cuando abra tu municipio, activo 14 días — ${descuento}% de descuento aplicado`
+          : 'Revisión cada 5 minutos + correo y llamada cuando abra tu municipio, activo 14 días',
         quantity: 1,
         currency_id: 'MXN',
-        unit_price: PRECIO_VIP
+        unit_price: precioFinal
       }
     ],
     payer: { email },
@@ -74,7 +84,8 @@ export default async (req) => {
       email, estado, idedo, municipio, phone,
       password_hash: passwordHash,
       referred_by: referredBy,
-      plan: 'vip'
+      plan: 'vip',
+      descuento_aplicado: descuento
     },
     statement_descriptor: 'MonitorJCF',
     expires: false
@@ -102,7 +113,8 @@ export default async (req) => {
       init_point: data.init_point,
       sandbox_init_point: data.sandbox_init_point,
       preference_id: data.id,
-      precio: PRECIO_VIP
+      precio: precioFinal,
+      descuento
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

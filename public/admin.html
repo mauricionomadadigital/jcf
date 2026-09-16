@@ -2660,8 +2660,8 @@
               <article class="card setting-card">
                 <h3>Reglas de los planes</h3>
                 <p>Intervalos fijos del programador de revisiones.</p>
-                <div class="field"><label>Frecuencia del plan Gratis</label><input value="Cada 2 horas" readonly /></div>
-                <div class="field"><label>Frecuencia del plan VIP</label><input value="Cada 10 minutos (más un chequeo rápido cada 5)" readonly /></div>
+                <div class="field"><label>Frecuencia del plan Gratis</label><input value="Cada 5 minutos por Telegram" readonly /></div>
+                <div class="field"><label>Frecuencia del plan VIP</label><input value="Cada 5 minutos — además correo y llamada, activo 14 días" readonly /></div>
                 <div class="field"><label>Precio VIP</label><input value="$100 MXN · 14 días" readonly /></div>
                 <div class="notice">Estas reglas están fijas en el código — cambiarlas requiere ajustar las funciones, no solo este panel.</div>
               </article>
@@ -2829,7 +2829,7 @@ async function cargarResumen() {
       <div class="stat-label">Usuarios activos</div><div class="stat-value">${stats.usuariosActivos}</div><div class="stat-line"></div></article>
     <article class="stat"><div class="stat-head"><div class="stat-icon si-green">${iconoStat('vip')}</div><span class="delta">${stats.usuariosActivos ? Math.round(stats.vip/stats.usuariosActivos*1000)/10 : 0}% conversión</span></div>
       <div class="stat-label">Suscripciones VIP</div><div class="stat-value">${stats.vip}</div><div class="stat-line" style="background:var(--green);width:${stats.usuariosActivos ? Math.round(stats.vip/stats.usuariosActivos*100) : 0}%"></div></article>
-    <article class="stat"><div class="stat-head"><div class="stat-icon si-amber">${iconoStat('municipios')}</div><span class="delta neutral">10 min</span></div>
+    <article class="stat"><div class="stat-head"><div class="stat-icon si-amber">${iconoStat('municipios')}</div><span class="delta neutral">cada 5 min</span></div>
       <div class="stat-label">Municipios vigilados</div><div class="stat-value">${stats.municipiosVigilados}</div><div class="stat-line" style="background:var(--amber);width:70%"></div></article>
     <article class="stat"><div class="stat-head"><div class="stat-icon si-purple">${iconoStat('ingresos')}</div></div>
       <div class="stat-label">Ingresos del periodo</div><div class="stat-value">${money(stats.ingresosPeriodo)}</div><div class="stat-line" style="background:var(--purple);width:82%"></div></article>`;

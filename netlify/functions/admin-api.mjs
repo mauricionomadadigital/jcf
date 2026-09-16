@@ -148,7 +148,10 @@ async function calcularMonitoreos() {
   return [...grupos.values()].map(g => ({
     ...g,
     resultado: buscarEstadoReal(estadoIdPorNombre, detmun, g.estado, g.municipio),
-    frecuencia: g.vip > 0 ? '10 minutos' : '2 horas'
+    // check-jcf-nacional revisa a todos cada 5 minutos por igual — lo
+    // que distingue a VIP son los canales (correo + llamada), no la
+    // velocidad de detección.
+    frecuencia: '5 minutos'
   })).sort((a, b) => (b.vip + b.free) - (a.vip + a.free));
 }
 

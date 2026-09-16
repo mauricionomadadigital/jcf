@@ -53,6 +53,28 @@ async function cerrarPeriodoSiVencido(config) {
   return { cerrado: true, archivados: archivados.length };
 }
 
+const VIP_DURACION_MS = 14 * 24 * 60 * 60 * 1000;
+
+// El checkout vende el VIP como "14 días" — si ya se cumplieron desde
+// que arrancó su ciclo (vip_started_at), pierde los canales VIP (correo
+// y llamada) y pasa a plan=free. Sigue activo y monitoreado por
+// Telegram: dejarlo sin ningún aviso sería más agresivo que lo que se
+// le vendió, y "gratis" ya es la base de todos modos.
+async function degradarVipVencidos() {
+  const limite = new Date(Date.now() - VIP_DURACION_MS).toISOString();
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/suscriptores?plan=eq.vip&activo=eq.true&vip_started_at=not.is.null&vip_started_at=lt.${encodeURIComponent(limite)}`,
+    {
+      method: 'PATCH',
+      headers: { ...headersSupabase(), 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      body: JSON.stringify({ plan: 'free', call_enabled: false })
+    }
+  );
+  if (!res.ok) throw new Error('Error degradando VIP vencidos: ' + (await res.text()));
+  const degradados = await res.json();
+  return degradados.length;
+}
+
 async function leerSuscriptoresActivos() {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true&select=id,email,estado,municipio,telegram_chat_id,plan,phone,call_enabled,email_enabled,telegram_enabled`,
@@ -105,9 +127,11 @@ async function ejecutarRevisionNacional() {
     return { ok: true, activo: false, motivo: 'Fuera del periodo de monitoreo global — no se procesó nada.' };
   }
 
+  const vipDegradados = await degradarVipVencidos();
+
   const suscriptores = await leerSuscriptoresActivos();
   if (suscriptores.length === 0) {
-    return { ok: true, activo: true, motivo: 'No hay suscriptores activos — no se procesó nada.' };
+    return { ok: true, activo: true, motivo: 'No hay suscriptores activos — no se procesó nada.', vipDegradados };
   }
 
   const clavesBuscadas = new Set(
@@ -245,6 +269,7 @@ async function ejecutarRevisionNacional() {
   return {
     ok: true,
     activo: true,
+    vipDegradados,
     municipiosRevisados: municipiosRelevantes.length,
     cambiosDetectados: cambios.length,
     alertasEnviadas,

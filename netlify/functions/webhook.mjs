@@ -4,7 +4,7 @@
 // código de referido y le manda el link de Telegram por correo.
 
 import { generarCodigoReferido } from './lib/auth.mjs';
-import { enviarCorreo, plantillaBienvenida } from './lib/email.mjs';
+import { enviarCorreo, plantillaBienvenida, plantillaUpgradeVinculado } from './lib/email.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -36,48 +36,103 @@ async function paymentAlreadyProcessed(paymentId) {
   return Array.isArray(data) && data.length > 0;
 }
 
-// Si el mismo correo ya fue VIP antes (ciclo previo), este pago es una
-// renovación: hereda cycle_number+1 y el descuento se limpia (ya se cobró).
-async function ultimoCicloDelCorreo(email) {
+// Trae TODAS las filas de ese correo, más reciente primero. Con esto
+// decidimos si el pago es una escalada (Gratis -> VIP), una renovación
+// (VIP -> VIP) o un alta nueva, y heredamos lo que no debería perderse
+// entre ciclos: el Telegram ya vinculado y el código de referido.
+async function historialPorCorreo(email) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/suscriptores?email=eq.${encodeURIComponent(email)}&plan=eq.vip&select=cycle_number&order=created_at.desc&limit=1`,
+    `${SUPABASE_URL}/rest/v1/suscriptores?email=eq.${encodeURIComponent(email)}&select=*&order=created_at.desc`,
     { headers: headersSupabase() }
   );
+  if (!res.ok) throw new Error('Error leyendo historial del correo: ' + (await res.text()));
   const data = await res.json();
-  return Array.isArray(data) && data[0] ? data[0].cycle_number : 0;
+  return Array.isArray(data) ? data : [];
 }
 
-async function crearSuscriptorVip({ email, estado, municipio, paymentId, phone, passwordHash, referredBy, monto }) {
-  const cicloAnterior = await ultimoCicloDelCorreo(email);
-  const referralCode = await generarCodigoReferido();
+async function desactivarFila(id) {
+  await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+    body: JSON.stringify({ activo: false })
+  });
+}
 
+async function actualizarFila(id, cambios) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+    body: JSON.stringify(cambios)
+  });
+  if (!res.ok) throw new Error('Error actualizando suscriptor: ' + (await res.text()));
+  const [row] = await res.json();
+  return row;
+}
+
+async function insertarFila(datos) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores`, {
     method: 'POST',
     headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
-    body: JSON.stringify({
-      email,
-      estado,
-      municipio,
-      activo: true,
-      payment_id: String(paymentId),
-      plan: 'vip',
-      phone: phone || null,
-      password_hash: passwordHash || null,
-      referral_code: referralCode,
-      referred_by: referredBy || null,
-      cycle_number: cicloAnterior + 1,
-      discount_percent: 0,
-      monto: monto || null,
-      call_enabled: !!phone,
-      vip_started_at: new Date().toISOString()
-    })
+    body: JSON.stringify(datos)
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Error guardando suscriptor en Supabase: ${err}`);
-  }
+  if (!res.ok) throw new Error(`Error guardando suscriptor en Supabase: ${await res.text()}`);
   const [row] = await res.json();
   return row;
+}
+
+// Da de alta el pago VIP sin duplicar identidad. Reglas:
+//
+// 1) Si la fila ACTIVA más reciente de este correo es plan=free, esto es
+//    una escalada real: se ACTUALIZA esa misma fila a vip. Conserva su
+//    id, telegram_token, telegram_chat_id y referral_code — si ya había
+//    vinculado Telegram en Gratis, sigue vinculado, no hay que repetir
+//    el paso.
+// 2) En cualquier otro caso (alta nueva, o vuelve después de un ciclo
+//    archivado) se inserta una fila nueva por ciclo — así el admin sigue
+//    viendo el historial de pagos por separado — pero heredando
+//    telegram_chat_id y referral_code de su fila más reciente si ya
+//    existían, y desactivando cualquier fila que hubiera quedado activa
+//    para ese correo, de modo que nunca haya dos filas activas a la vez.
+async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, passwordHash, referredBy, monto }) {
+  const historial = await historialPorCorreo(email);
+  const filaActiva = historial.find(f => f.activo);
+  const cicloMaxVip = historial.reduce((max, f) => (f.plan === 'vip' ? Math.max(max, f.cycle_number || 0) : max), 0);
+  const filaConChat = historial.find(f => f.telegram_chat_id);
+  const filaConReferido = historial.find(f => f.referral_code);
+
+  const camposComunes = {
+    payment_id: String(paymentId),
+    plan: 'vip',
+    estado,
+    municipio,
+    phone: phone || null,
+    password_hash: passwordHash || null,
+    cycle_number: cicloMaxVip + 1,
+    discount_percent: 0,
+    monto: monto || null,
+    call_enabled: !!phone,
+    vip_started_at: new Date().toISOString(),
+    activo: true
+  };
+
+  if (filaActiva && filaActiva.plan === 'free') {
+    const row = await actualizarFila(filaActiva.id, {
+      ...camposComunes,
+      referred_by: filaActiva.referred_by || referredBy || null
+    });
+    return { row, yaVinculado: !!row.telegram_chat_id };
+  }
+
+  if (filaActiva) await desactivarFila(filaActiva.id);
+
+  const row = await insertarFila({
+    email,
+    ...camposComunes,
+    referral_code: filaConReferido?.referral_code || await generarCodigoReferido(),
+    referred_by: filaConReferido?.referred_by || referredBy || null,
+    telegram_chat_id: filaConChat?.telegram_chat_id || null
+  });
+  return { row, yaVinculado: !!row.telegram_chat_id };
 }
 
 async function processPayment(paymentId) {
@@ -106,7 +161,7 @@ async function processPayment(paymentId) {
     throw new Error('Faltan datos (email/estado/municipio) en el pago — revisa el metadata enviado por create-preference.');
   }
 
-  const suscriptor = await crearSuscriptorVip({
+  const { row: suscriptor, yaVinculado } = await altaOEscaladaVip({
     email, estado, municipio, paymentId,
     phone: meta.phone,
     passwordHash: meta.password_hash,
@@ -114,14 +169,22 @@ async function processPayment(paymentId) {
     monto: payment.transaction_amount
   });
 
-  const telegramLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${suscriptor.telegram_token}`;
-  await enviarCorreo(
-    email,
-    '✅ Tu monitoreo VIP de JCF ya está activo',
-    plantillaBienvenida({ plan: 'vip', municipio, estado, telegramLink })
-  );
+  if (yaVinculado) {
+    await enviarCorreo(
+      email,
+      '✅ Tu plan VIP de Monitor JCF ya está activo',
+      plantillaUpgradeVinculado({ municipio, estado })
+    );
+  } else {
+    const telegramLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${suscriptor.telegram_token}`;
+    await enviarCorreo(
+      email,
+      '✅ Tu monitoreo VIP de JCF ya está activo',
+      plantillaBienvenida({ plan: 'vip', municipio, estado, telegramLink })
+    );
+  }
 
-  console.log(`✅ Suscriptor VIP creado: ${email} — ${municipio}, ${estado}`);
+  console.log(`✅ Suscriptor VIP: ${email} — ${municipio}, ${estado}`);
   return { ok: true, email, estado, municipio };
 }
 

@@ -95,7 +95,10 @@ export default async (req) => {
       const { result, comment } = await req.json();
       if (result !== 'yes' && result !== 'no') return json({ error: 'Indica si lograste tu objetivo.' }, 400);
       const cambios = { survey_result: result, survey_comment: comment || null };
-      if (result === 'no') {
+      // El descuento de renovación es un beneficio VIP — un plan Gratis
+      // no tiene nada que renovar todavía, así que no debe poder ganarlo
+      // llamando esta acción directo.
+      if (result === 'no' && suscriptor.plan === 'vip') {
         cambios.discount_percent = suscriptor.cycle_number >= 2 ? 70 : 50;
       }
       const row = await actualizar(suscriptor.id, cambios);
