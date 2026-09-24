@@ -30,17 +30,30 @@ const headers = {
 };
 
 // El prompt es lo que de verdad controla que sea un aviso y no una
-// plática — así lo pidió Mauri, con el cierre natural que sugirió para
-// que el agente sepa que ya puede colgar.
-const PROMPT_AVISO = `Eres un sistema de avisos automatizados, NO un agente conversacional. Tu única función es leer el siguiente mensaje UNA VEZ y colgar inmediatamente después, sin hacer preguntas ni esperar respuesta:
+// plática — así lo pidió Mauri. Es tipo "alarma": el mensaje corto se
+// repite varias veces (para durar ~20 segundos y que quede claro aunque
+// contesten a medias distraídos) en vez de decirse una sola vez.
+//
+// Nota de la sesión del 24-sep-2026: en una llamada real el agente se
+// desvió a un guion conversacional de confirmación de pedidos ("¿Hablo
+// con el titular del pedido?") en vez de seguir este prompt — resultó
+// que el agente traía por default los `analysis_fields` y varias
+// banderas del `handbook` de una plantilla de e-commerce (Dropi), que
+// empujaban ese comportamiento. Por eso este script ahora limpia esas
+// banderas explícitamente en el paso 3, no solo el prompt.
+const PROMPT_AVISO = `Eres un sistema de avisos automatizados, NO un agente conversacional. Tu única función es leer el siguiente mensaje, tal cual está escrito, UNA SOLA VEZ de principio a fin, y colgar inmediatamente después — no inicies ninguna conversación, no hagas preguntas, no esperes respuesta, no improvises nada fuera de este texto:
 
-"Aviso automático de Monitor JCF. El registro para {{cv_municipio}}, {{cv_estado}} ya está abierto. Entra ahora a la plataforma oficial para intentar registrarte. Muchas gracias por su atención. Este es un servicio de avisos automatizados, puede colgar ahora."
+"¡Alerta! Tu municipio, {{cv_municipio}}, en {{cv_estado}}, ya abrió su registro.
+¡Alerta! Entra ahora a la plataforma oficial y regístrate cuanto antes.
+¡Alerta! {{cv_municipio}} está abierto en este momento, no pierdas tu lugar.
+¡Alerta! Regístrate ya en la plataforma oficial de Jóvenes Construyendo el Futuro.
+¡Alerta! Tu municipio ya abrió su registro. Puede colgar ahora, gracias."
 
 Reglas estrictas:
-- No inicies ninguna conversación ni hagas preguntas.
-- Si la persona dice algo, responde como máximo con un agradecimiento muy breve y despídete.
-- Cuelga la llamada en cuanto termines de leer el mensaje, o unos segundos después si detectas silencio.
-- Nunca improvises información adicional sobre el programa — no eres soporte de Jóvenes Construyendo el Futuro, solo un aviso.`;
+- No inicies ninguna conversación ni hagas preguntas, ni siquiera para saludar o preguntar quién contesta.
+- Si la persona dice algo mientras hablas o después, ignóralo o responde como máximo con un agradecimiento muy breve, y sigue/termina el mensaje de arriba tal cual.
+- Cuelga la llamada en cuanto termines de leer el mensaje completo, o unos segundos después si detectas silencio.
+- Nunca improvises información adicional sobre el programa, ni preguntes por pedidos, direcciones, productos ni nada — no eres soporte de Jóvenes Construyendo el Futuro ni un agente de ventas, solo un aviso.`;
 
 async function main() {
   console.log('1) Verificando la clave (GET /me)...');
@@ -103,11 +116,27 @@ async function main() {
     method: 'PATCH',
     headers,
     body: JSON.stringify({
-      max_call_duration_ms: 25000,
+      max_call_duration_ms: 25000, // en la práctica Talkyria parece forzar un mínimo de 60000
       end_call_after_silence_ms: 3000,
+      ring_duration_ms: 20000,
       enable_backchannel: false,
       voicemail: { enabled: true, action: 'hangup' },
-      handbook: { ai_disclosure: true, scope_boundaries: true }
+      // Talkyria crea el agente con analysis_fields y handbook de una
+      // plantilla de e-commerce (Dropi) por default — hay que limpiarlos
+      // explícitamente o el agente se desvía a un tono de confirmación
+      // de pedidos en vez de seguir el guion de arriba.
+      analysis_fields: [],
+      handbook: {
+        default_personality: false,
+        natural_filler_words: false,
+        high_empathy: false,
+        echo_verification: false,
+        nato_phonetic_alphabet: false,
+        speech_normalization: false,
+        smart_matching: false,
+        ai_disclosure: true,
+        scope_boundaries: true
+      }
     })
   });
   const adv = await advRes.json();
