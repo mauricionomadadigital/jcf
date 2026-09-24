@@ -2444,7 +2444,7 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Usuario</th><th>Plan</th><th>Municipio</th><th>Canales</th><th>Alta</th><th>Estado</th>
+                      <th>Usuario</th><th>Plan</th><th>Municipio</th><th>Canales</th><th>Alta</th><th>Estado</th><th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="tablaUsuarios"></tbody>
@@ -2946,9 +2946,27 @@ function pintarUsuarios(){
       <td><span class="plan-pill ${s.plan === 'vip' ? 'plan-vip' : 'plan-free'}">${s.plan === 'vip' ? '★ VIP' : 'Gratis'}</span></td>
       <td>${s.municipio}, ${s.estado}</td><td>${canales || '—'}</td>
       <td>${fecha(s.created_at)}</td>
-      <td><span class="status-pill ${s.activo ? 'open' : 'error'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td></tr>`;
-  }).join('') || '<tr><td colspan="6">Sin usuarios que coincidan.</td></tr>';
+      <td><span class="status-pill ${s.activo ? 'open' : 'error'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td>
+      <td><button class="link-btn" style="color:#c0491f;" data-eliminar="${s.id}" data-correo="${s.email}">Dar de baja</button></td></tr>`;
+  }).join('') || '<tr><td colspan="7">Sin usuarios que coincidan.</td></tr>';
 }
+$('tablaUsuarios').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-eliminar]');
+  if (!btn) return;
+  const id = btn.dataset.eliminar;
+  const correo = btn.dataset.correo;
+  if (!confirm(`¿Seguro que quieres dar de baja y borrar por completo la cuenta de ${correo}? No se puede deshacer — se elimina de la tabla, deja de recibir Telegram y correo, y su código de baja deja de servir.`)) return;
+  btn.disabled = true; btn.textContent = 'Borrando…';
+  try {
+    await api('eliminar-usuario', 'POST', { id });
+    SUSCRIPTORES_CACHE = SUSCRIPTORES_CACHE.filter(s => String(s.id) !== String(id));
+    pintarUsuarios();
+    notify(`Cuenta de ${correo} eliminada`);
+  } catch (err) {
+    alert('Error: ' + err.message);
+    btn.disabled = false; btn.textContent = 'Dar de baja';
+  }
+});
 async function cargarUsuarios() {
   const { suscriptores } = await api('suscriptores');
   SUSCRIPTORES_CACHE = suscriptores;

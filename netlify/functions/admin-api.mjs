@@ -265,6 +265,20 @@ export default async (req) => {
       return json({ ok: true, resultado: await testMunicipio(body.estado, body.municipio) });
     }
 
+    // Baja forzada desde el admin: mismo efecto que "Dar de baja" del
+    // propio usuario — borra la fila por completo (Telegram, correo y
+    // alertas se cortan solos porque ya no existe a quién avisarle).
+    if (req.method === 'POST' && action === 'eliminar-usuario') {
+      const { id } = await req.json();
+      if (!id) return json({ error: 'Falta el id del suscriptor.' }, 400);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: headersSupabase()
+      });
+      if (!res.ok) return json({ error: await res.text() }, 500);
+      return json({ ok: true });
+    }
+
     return json({ error: 'Acción no reconocida' }, 400);
 
   } catch (err) {
