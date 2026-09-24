@@ -90,6 +90,9 @@ export default async (req) => {
       if (call_enabled && !/^\d{10}$/.test(phone || '')) {
         return json({ error: 'Escribe un teléfono de 10 dígitos para activar llamadas.' }, 400);
       }
+      if (call_enabled && suscriptor.telefono_prefijo && suscriptor.telefono_prefijo !== '+52') {
+        return json({ error: 'La llamada automática por ahora solo funciona con números de México (+52).' }, 400);
+      }
       const row = await actualizar(suscriptor.id, {
         email_enabled: !!email_enabled,
         telegram_enabled: !!telegram_enabled,
@@ -120,12 +123,22 @@ export default async (req) => {
       const cambios = { survey_result: result, survey_comment: comment || null };
       // El descuento de renovación es un beneficio VIP — un plan Gratis
       // no tiene nada que renovar todavía, así que no debe poder ganarlo
-      // llamando esta acción directo.
+      // llamando esta acción directo. Tampoco debe poder reclamarlo el
+      // mismo día que se registra: solo aplica una vez que el ciclo
+      // realmente llegó a su fecha de encuesta (o, si no hay fecha
+      // configurada, al fin del periodo).
       if (result === 'no' && suscriptor.plan === 'vip') {
-        cambios.discount_percent = suscriptor.cycle_number >= 2 ? 70 : 50;
+        const configRes = await fetch(`${SUPABASE_URL}/rest/v1/configuracion?id=eq.1&select=encuesta_fecha,periodo_fin&limit=1`, { headers: headersSupabase() });
+        const configData = await configRes.json();
+        const config = Array.isArray(configData) && configData[0] ? configData[0] : null;
+        const fechaLimite = config?.encuesta_fecha || config?.periodo_fin;
+        const hoy = new Date().toISOString().slice(0, 10);
+        if (!fechaLimite || hoy >= fechaLimite) {
+          cambios.discount_percent = suscriptor.cycle_number >= 2 ? 70 : 50;
+        }
       }
       const row = await actualizar(suscriptor.id, cambios);
-      return json({ ok: true, suscriptor: sinPassword(row) });
+      return json({ ok: true, suscriptor: sinPassword(row), discountApplied: !!cambios.discount_percent });
     }
 
     if (req.method === 'POST' && action === 'reactivar') {

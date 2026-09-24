@@ -2328,7 +2328,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Revisión</td><td style="padding:7px 4px;">Cada 2 horas</td><td style="padding:7px 4px;font-weight:600;">Cada 10 minutos</td></tr>
+            <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Revisión</td><td style="padding:7px 4px;" id="tablaFrecFree">Cada 2 horas</td><td style="padding:7px 4px;font-weight:600;" id="tablaFrecVip">Cada 10 minutos</td></tr>
             <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Telegram</td><td style="padding:7px 4px;">✔</td><td style="padding:7px 4px;font-weight:600;">✔</td></tr>
             <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Correo</td><td style="padding:7px 4px;">✔</td><td style="padding:7px 4px;font-weight:600;">✔</td></tr>
             <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Llamada automática</td><td style="padding:7px 4px;">—</td><td style="padding:7px 4px;font-weight:600;">✔</td></tr>
@@ -2336,7 +2336,7 @@
             <tr style="border-top:1px solid #e5e9ef;background:#f0fbf6;"><td style="padding:7px 4px;color:#4a5568;font-weight:600;">Prob. de enterarte a tiempo</td><td style="padding:7px 4px;">~30%</td><td style="padding:7px 4px;font-weight:700;color:#178e5c;">~90%</td></tr>
           </tbody>
         </table>
-        <p style="font-size:12px;color:#718096;">Es una estimación, no una garantía: los cupos suelen llenarse en minutos. Con Gratis, una apertura puede pasar y cerrarse antes de tu siguiente revisión de 2 horas. Con VIP revisamos cada 10 minutos y además de Telegram y correo te llamamos por teléfono — tres formas distintas de que sí te enteres a tiempo.</p>
+        <p style="font-size:12px;color:#718096;" id="tablaComparativaNota">Es una estimación, no una garantía: los cupos suelen llenarse en minutos. Con Gratis, una apertura puede pasar y cerrarse antes de tu siguiente revisión de 2 horas. Con VIP revisamos cada 10 minutos y además de Telegram y correo te llamamos por teléfono — tres formas distintas de que sí te enteres a tiempo.</p>
       </aside>
     </div>
 
@@ -2516,7 +2516,7 @@
             <p>Activa tus medios de contacto. Algunos datos son obligatorios según el canal.</p>
             <div class="channel-option">
               <div class="channel-icon mail">✉</div>
-              <div><strong>Correo</strong><p>Avisos de apertura (solo VIP).</p></div>
+              <div><strong>Correo</strong><p>Avisos de apertura cuando tu municipio abre.</p></div>
               <button class="toggle on" id="tgEmail" data-channel="email" aria-label="Activar correo"></button>
             </div>
             <div class="channel-option">
@@ -2530,9 +2530,14 @@
               <button class="toggle" id="callToggle" data-channel="call" aria-label="Activar llamadas" disabled></button>
             </div>
             <div class="channel-requirement oculto" id="phoneRequirement">
-              <div class="field">
-                <label for="customerPhone">Teléfono obligatorio para llamadas</label>
-                <div class="phone-prefix"><span>+52</span><input id="customerPhone" inputmode="tel" placeholder="10 dígitos" maxlength="10" /></div>
+              <div class="field" id="phoneFaltaWrap">
+                <p style="margin:0;font-size:13px;color:#c33f4b;">Todavía no tienes teléfono guardado. Agrégalo en <button class="link-btn" id="irADatosPersonales" style="font-size:13px;">Datos personales</button> antes de activar llamadas.</p>
+              </div>
+              <div class="field oculto" id="phoneListoWrap">
+                <p style="margin:0;font-size:13px;color:var(--muted);">Te llamaremos al <strong id="phoneListoTexto">—</strong>. ¿Es un número distinto? Cámbialo en <button class="link-btn" id="irADatosPersonales2" style="font-size:13px;">Datos personales</button>.</p>
+              </div>
+              <div class="field oculto" id="phonePrefijoNoSoportado">
+                <p style="margin:0;font-size:13px;color:#c33f4b;">La llamada automática por ahora solo funciona con números de México (+52). Cambia tu prefijo en Datos personales para activarla.</p>
               </div>
               <div class="us-number-note"><strong>+1</strong><span>La llamada llegará desde un número de Estados Unidos. Contesta: es un aviso de municipio abierto, no una solicitud de pago.</span></div>
             </div>
@@ -2540,7 +2545,7 @@
             <div class="msg" id="canalesMsg" style="font-size:12px;margin-top:8px;"></div>
           </article>
 
-          <article class="portal-card section-anchor" style="margin-top: 16px">
+          <article class="portal-card section-anchor" id="datosPersonales" style="margin-top: 16px">
             <h3>Datos personales</h3>
             <p>Tu correo no se puede cambiar aquí — si necesitas otro, date de baja y regístrate de nuevo.</p>
             <div class="field"><label for="perfilNombre">Tu nombre</label><input id="perfilNombre" type="text" autocomplete="name" /></div>
@@ -2597,7 +2602,7 @@
   <div class="modal-card">
     <div class="modal-head"><h3>Subir a VIP</h3><button class="link-btn" id="cerrarModalVip">✕</button></div>
     <div class="modal-body">
-      <p>Vas a activar VIP para <strong id="vipCheckoutLugar">—</strong> — <strong>$100 MXN</strong>, revisión cada 10 minutos, correo y llamada, 14 días. Nada de tus datos cambia, solo se activa el plan.</p>
+      <p>Vas a activar VIP para <strong id="vipCheckoutLugar">—</strong> <span id="vipCheckoutTexto">— $100 MXN, revisión cada 10 minutos, correo y llamada, 14 días. Nada de tus datos cambia, solo se activa el plan.</span></p>
       <div class="field oculto" id="vipCheckoutTelefonoWrap">
         <label for="vipCheckoutTelefono">Teléfono (para la llamada VIP)</label>
         <div style="display:flex;gap:8px;">
@@ -2693,11 +2698,21 @@ function actualizarDescripcionPlan(){
     ? `Cada ${frec} — Telegram + correo + llamada, 14 días.`
     : `Revisión cada ${frec} por Telegram — sin costo.`;
 }
+function actualizarTablaComparativa(){
+  const frecFree = textoFrecuenciaReg(FRECUENCIAS_PUBLICAS.free_frecuencia_min);
+  const frecVip = textoFrecuenciaReg(FRECUENCIAS_PUBLICAS.vip_frecuencia_min);
+  $('tablaFrecFree').textContent = `Cada ${frecFree}`;
+  $('tablaFrecVip').textContent = `Cada ${frecVip}`;
+  $('tablaComparativaNota').textContent = `Es una estimación, no una garantía: los cupos suelen llenarse en minutos. Con Gratis, una apertura puede pasar y cerrarse antes de tu siguiente revisión de ${frecFree}. Con VIP revisamos cada ${frecVip} y además de Telegram y correo te llamamos por teléfono — tres formas distintas de que sí te enteres a tiempo.`;
+  const modalTexto = $('vipCheckoutTexto');
+  if (modalTexto) modalTexto.textContent = `— $100 MXN, revisión cada ${frecVip}, correo y llamada, 14 días. Nada de tus datos cambia, solo se activa el plan.`;
+}
 (async () => {
   try {
     const r = await fetch('/.netlify/functions/config-publica');
     FRECUENCIAS_PUBLICAS = await r.json();
     actualizarDescripcionPlan();
+    actualizarTablaComparativa();
   } catch {}
 })();
 document.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => {
@@ -2968,9 +2983,20 @@ function renderPlan(){
   $('callToggle').classList.toggle('on', !!CUENTA.call_enabled);
   $('callToggle').disabled = !esVip;
   $('callAvailability').textContent = esVip ? 'Una llamada cuando tu municipio abra.' : 'Disponible al subir a VIP.';
-  $('phoneRequirement').classList.toggle('oculto', !CUENTA.call_enabled);
-  $('customerPhone').value = CUENTA.phone || '';
+  actualizarRequisitoTelefono();
   $('miCodigo').textContent = CUENTA.referral_code || '—';
+}
+function esPrefijoSoportadoParaLlamada(){
+  return !CUENTA.telefono_prefijo || CUENTA.telefono_prefijo === '+52';
+}
+function actualizarRequisitoTelefono(){
+  $('phoneRequirement').classList.toggle('oculto', !$('callToggle').classList.contains('on'));
+  const tieneTelefono = !!CUENTA.phone;
+  const prefijoOk = esPrefijoSoportadoParaLlamada();
+  $('phoneFaltaWrap').classList.toggle('oculto', tieneTelefono);
+  $('phoneListoWrap').classList.toggle('oculto', !tieneTelefono || !prefijoOk);
+  $('phonePrefijoNoSoportado').classList.toggle('oculto', !tieneTelefono || prefijoOk);
+  if (tieneTelefono) $('phoneListoTexto').textContent = `${CUENTA.telefono_prefijo || '+52'} ${CUENTA.phone}`;
 }
 function actualizarPulsoMapa(estadoReal){
   const pulso = $('mapaPulso');
@@ -3076,9 +3102,20 @@ $('tgEmail').addEventListener('click', function(){ this.classList.toggle('on'); 
 $('tgTelegram').addEventListener('click', function(){ this.classList.toggle('on'); });
 $('callToggle').addEventListener('click', function(){
   if (this.disabled) return;
+  const vaAEncender = !this.classList.contains('on');
+  if (vaAEncender && (!CUENTA.phone || !esPrefijoSoportadoParaLlamada())) {
+    // No lo dejamos encender sin un teléfono válido de México — se
+    // muestra el mensaje correspondiente en vez de activar en falso.
+    this.classList.remove('on');
+    actualizarRequisitoTelefono();
+    $('phoneRequirement').classList.remove('oculto');
+    return;
+  }
   this.classList.toggle('on');
-  $('phoneRequirement').classList.toggle('oculto', !this.classList.contains('on'));
+  actualizarRequisitoTelefono();
 });
+$('irADatosPersonales')?.addEventListener('click', () => $('datosPersonales').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+$('irADatosPersonales2')?.addEventListener('click', () => $('datosPersonales').scrollIntoView({ behavior: 'smooth', block: 'start' }));
 $('saveChannels').addEventListener('click', async () => {
   const msg = $('canalesMsg'); msg.textContent = 'Guardando…';
   try {
@@ -3086,7 +3123,7 @@ $('saveChannels').addEventListener('click', async () => {
       email_enabled: $('tgEmail').classList.contains('on'),
       telegram_enabled: $('tgTelegram').classList.contains('on'),
       call_enabled: $('callToggle').classList.contains('on'),
-      phone: $('customerPhone').value.trim()
+      phone: CUENTA.phone || ''
     });
     CUENTA = suscriptor;
     msg.textContent = 'Canales guardados.';
@@ -3152,8 +3189,12 @@ document.querySelectorAll('[data-result]').forEach(b => b.addEventListener('clic
 $('sendFeedback').addEventListener('click', async () => {
   if (!surveyResult) { alert('Indica primero si lograste tu objetivo.'); return; }
   try {
-    await apiCliente('encuesta', 'POST', { result: surveyResult, comment: $('experienceComment').value.trim() });
-    alert('Experiencia registrada. ¡Gracias!');
+    const { discountApplied } = await apiCliente('encuesta', 'POST', { result: surveyResult, comment: $('experienceComment').value.trim() });
+    if (surveyResult === 'no' && !discountApplied) {
+      alert('Experiencia registrada, gracias. El descuento de continuidad se activa hasta que termine tu ciclo actual — vuelve a esta sección más adelante.');
+    } else {
+      alert('Experiencia registrada. ¡Gracias!');
+    }
   } catch (err) { alert('Error: ' + err.message); }
 });
 

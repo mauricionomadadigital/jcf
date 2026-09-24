@@ -2540,7 +2540,7 @@
               </div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Cliente</th><th>Municipio</th><th>Importe</th><th>Ciclo</th><th>Descuento</th><th>Inicio</th><th>Finaliza</th></tr></thead>
+                  <thead><tr><th>Cliente</th><th>Municipio</th><th>Importe</th><th>Ciclo</th><th>Descuento</th><th>Inicio</th><th>Finaliza</th><th>Estado</th></tr></thead>
                   <tbody id="tablaPagos"></tbody>
                 </table>
               </div>
@@ -3052,7 +3052,8 @@ async function cargarPagos() {
   $('tablaPagos').innerHTML = pagos.map(p => `
     <tr><td>${p.email}</td><td>${p.municipio}, ${p.estado}</td><td><strong>${money(p.monto)}</strong></td>
       <td>Ciclo ${p.cycle_number}</td><td>${p.discount_percent ? p.discount_percent + '%' : '—'}</td>
-      <td>${fecha(p.vip_started_at || p.created_at)}</td><td>${fecha(p.finaliza)}</td></tr>`).join('') || '<tr><td colspan="7">Sin pagos VIP todavía.</td></tr>';
+      <td>${fecha(p.vip_started_at || p.created_at)}</td><td>${fecha(p.finaliza)}</td>
+      <td><span class="status-pill ${p.vigente ? 'open' : 'error'}">${p.vigente ? 'Vigente' : (p.plan === 'vip' ? 'Vencido, sigue VIP' : 'Vencido, ya es Gratis')}</span></td></tr>`).join('') || '<tr><td colspan="8">Sin pagos VIP todavía.</td></tr>';
   window._PAGOS_CACHE = pagos;
 }
 $('btnExportarPagos').addEventListener('click', () => {

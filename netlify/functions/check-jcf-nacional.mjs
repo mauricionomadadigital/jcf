@@ -138,7 +138,7 @@ function yaLeToca(ultimaRevisionIso, frecuenciaMin) {
 
 async function leerSuscriptoresActivosDePlan(plan) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true&plan=eq.${plan}&select=id,email,estado,municipio,telegram_chat_id,phone,call_enabled,email_enabled,telegram_enabled`,
+    `${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true&plan=eq.${plan}&select=id,email,estado,municipio,telegram_chat_id,phone,telefono_prefijo,call_enabled,email_enabled,telegram_enabled`,
     { headers: headersSupabase() }
   );
   if (!res.ok) throw new Error('No se pudieron leer los suscriptores: ' + (await res.text()));
@@ -254,12 +254,16 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
         );
       }
 
-      // Llamada: exclusiva VIP.
-      if (plan === 'vip' && cambio.estadoNuevo === 'Abierto' && s.call_enabled && s.phone) {
+      // Llamada: exclusiva VIP, y por ahora solo para números de México
+      // (+52) — es lo único que se probó con Talkyria en producción. El
+      // panel ya bloquea activar llamadas con otro prefijo, pero se
+      // valida también aquí por si acaso.
+      const prefijo = s.telefono_prefijo || '+52';
+      if (plan === 'vip' && cambio.estadoNuevo === 'Abierto' && s.call_enabled && s.phone && prefijo === '+52') {
         llamadasIntentadas++;
         const evento = `${s.id}|${cambio.clave}|apertura`;
         const resultado = await llamarTalkyria({
-          telefono: `+52${s.phone}`, nombre: s.email.split('@')[0],
+          telefono: `${prefijo}${s.phone}`, nombre: s.email.split('@')[0],
           municipio: cambio.municipio, estado: estadoNombreReal, externalId: evento
         });
         await registrarLlamadaSiNueva({

@@ -95,22 +95,27 @@ async function calcularStats() {
   const activos = suscriptores.filter(s => s.activo);
   const vip = activos.filter(s => s.plan === 'vip');
   const free = activos.filter(s => s.plan === 'free');
+  // "Pagó alguna vez" — a diferencia de `vip`, esto NO desaparece cuando
+  // el VIP se degrada a Gratis a los 14 días (check-jcf-nacional), así
+  // que los ingresos no se pierden solo porque ya venció su ciclo.
+  const pagadores = suscriptores.filter(s => s.payment_id);
 
   const haceUnaSemana = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const nuevosSemana = activos.filter(s => new Date(s.created_at).getTime() >= haceUnaSemana).length;
 
   const municipiosUnicos = new Set(activos.map(s => normalizar(s.estado) + '|' + normalizar(s.municipio)));
 
-  const ingresos = vip.reduce((sum, s) => sum + (Number(s.monto) || 0), 0);
+  const ingresos = pagadores.reduce((sum, s) => sum + (Number(s.monto) || 0), 0);
 
-  // Conversiones VIP por día, últimos 7 días.
+  // Conversiones VIP por día, últimos 7 días — sobre quién pagó ese día,
+  // sin importar si para hoy ya se le venció el ciclo.
   const dias = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const clave = d.toISOString().slice(0, 10);
     const nombre = d.toLocaleDateString('es-MX', { weekday: 'short' });
-    const nuevosVip = vip.filter(s => (s.vip_started_at || s.created_at || '').slice(0, 10) === clave);
+    const nuevosVip = pagadores.filter(s => (s.vip_started_at || s.created_at || '').slice(0, 10) === clave);
     dias.push({
       dia: nombre,
       nuevosVip: nuevosVip.length,
@@ -162,11 +167,14 @@ async function calcularMonitoreos() {
 
 // --- Pagos -----------------------------------------------------------------
 async function calcularPagos() {
-  const suscriptores = await sb('suscriptores?plan=eq.vip&select=id,email,municipio,estado,monto,cycle_number,discount_percent,vip_started_at,created_at&order=created_at.desc&limit=200');
+  // Se identifica por payment_id (quien pagó alguna vez), no por
+  // plan=vip — si no, un pago desaparece de esta lista en cuanto se
+  // cumplen los 14 días y check-jcf-nacional degrada la cuenta a free.
+  const suscriptores = await sb('suscriptores?payment_id=not.is.null&select=id,email,municipio,estado,plan,monto,cycle_number,discount_percent,vip_started_at,created_at&order=created_at.desc&limit=200');
   return suscriptores.map(s => {
     const inicio = s.vip_started_at || s.created_at;
     const finaliza = inicio ? new Date(new Date(inicio).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString() : null;
-    return { ...s, finaliza };
+    return { ...s, finaliza, vigente: finaliza ? new Date(finaliza).getTime() > Date.now() : null };
   });
 }
 
@@ -176,12 +184,14 @@ async function calcularReferidos() {
     sb('suscriptores?referral_code=not.is.null&select=email,referral_code,created_at'),
     sb('referral_clicks?select=code,clics')
   ]);
-  const todos = await sb('suscriptores?referred_by=not.is.null&select=plan,referred_by');
+  const todos = await sb('suscriptores?referred_by=not.is.null&select=plan,payment_id,referred_by');
   const clicksPorCodigo = new Map(clicks.map(c => [c.code, c.clics]));
 
   const filas = conCodigo.map(u => {
     const registros = todos.filter(r => r.referred_by === u.referral_code);
-    const vip = registros.filter(r => r.plan === 'vip').length;
+    // payment_id (no plan actual) — un referido que pagó VIP sigue
+    // contando como conversión aunque después se le venza el ciclo.
+    const vip = registros.filter(r => r.payment_id).length;
     const clics = clicksPorCodigo.get(u.referral_code) || 0;
     return {
       email: u.email,
@@ -198,7 +208,7 @@ async function calcularReferidos() {
     filas,
     totalClics: clicks.reduce((s, c) => s + c.clics, 0),
     totalRegistros: todos.length,
-    totalCompradores: todos.filter(r => r.plan === 'vip').length
+    totalCompradores: todos.filter(r => r.payment_id).length
   };
 }
 
