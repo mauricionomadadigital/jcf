@@ -2278,32 +2278,42 @@
           <div class="field"><label for="regNombre">Tu nombre</label><input id="regNombre" type="text" placeholder="Ej. Juan Casas" autocomplete="name" /></div>
           <div class="field"><label for="regEstado">Estado</label><select id="regEstado" disabled><option>Cargando estados…</option></select></div>
           <div class="field"><label for="regMunicipio">Municipio</label><select id="regMunicipio" disabled><option>Elige primero tu estado</option></select></div>
-          <div class="field"><label for="regEmail">Tu correo</label><input id="regEmail" type="email" autocomplete="email" /><small style="display:block;color:#a0aec0;font-size:11.5px;margin-top:4px;">El correo de confirmación a veces llega a spam — revisa esa bandeja si no lo ves.</small></div>
-          <div class="field"><label for="regPassword">Elige una contraseña</label><input id="regPassword" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" /></div>
-          <div class="field"><label for="regPasswordConfirm">Confirma tu contraseña</label><input id="regPasswordConfirm" type="password" placeholder="Escríbela otra vez" autocomplete="new-password" /></div>
-          <div class="field"><label for="regTelefono">Teléfono <span id="telefonoReqLabel" class="oculto">(a 10 dígitos, para la llamada VIP)</span></label>
-            <div style="display:flex;gap:8px;">
-              <select id="regTelefonoPrefijo" style="flex:0 0 118px;">
-                <option value="+52" selected>🇲🇽 +52</option>
-                <option value="+1">🇺🇸 +1</option>
-                <option value="+34">🇪🇸 +34</option>
-                <option value="+502">🇬🇹 +502</option>
-                <option value="+503">🇸🇻 +503</option>
-                <option value="+504">🇭🇳 +504</option>
-              </select>
-              <input id="regTelefono" type="tel" inputmode="tel" maxlength="10" style="flex:1;" />
+          <div class="reg-toggle" style="margin-top:6px;">
+            <button type="button" class="active" data-metodo="correo">Correo y contraseña</button>
+            <button type="button" data-metodo="google">Con Google</button>
+          </div>
+
+          <div id="metodoCorreoWrap">
+            <div class="field"><label for="regEmail">Tu correo</label><input id="regEmail" type="email" autocomplete="email" /><small style="display:block;color:#a0aec0;font-size:11.5px;margin-top:4px;">El correo de confirmación a veces llega a spam — revisa esa bandeja si no lo ves.</small></div>
+            <div class="field"><label for="regPassword">Elige una contraseña</label><input id="regPassword" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" /></div>
+            <div class="field"><label for="regPasswordConfirm">Confirma tu contraseña</label><input id="regPasswordConfirm" type="password" placeholder="Escríbela otra vez" autocomplete="new-password" /></div>
+            <div class="field"><label for="regTelefono">Teléfono <span id="telefonoReqLabel" class="oculto">(a 10 dígitos, para la llamada VIP)</span></label>
+              <div style="display:flex;gap:8px;">
+                <select id="regTelefonoPrefijo" style="flex:0 0 118px;">
+                  <option value="+52" selected>🇲🇽 +52</option>
+                  <option value="+1">🇺🇸 +1</option>
+                  <option value="+34">🇪🇸 +34</option>
+                  <option value="+502">🇬🇹 +502</option>
+                  <option value="+503">🇸🇻 +503</option>
+                  <option value="+504">🇭🇳 +504</option>
+                </select>
+                <input id="regTelefono" type="tel" inputmode="tel" maxlength="10" style="flex:1;" />
+              </div>
             </div>
+            <div class="precio-box" style="display:flex;align-items:baseline;justify-content:space-between;margin-top:14px;padding:12px 14px;background:var(--verde-fuerte, #0f2b21);border:1px solid rgba(52,211,153,.3);border-radius:10px;">
+              <span style="font-size:12px;color:#9fe6c4;" id="precioLbl">Plan Gratis</span>
+              <span style="font-size:19px;font-weight:700;color:#34d399;" id="precioTxt">$0.00 MXN</span>
+            </div>
+            <div id="referidoBadge" class="oculto" style="margin-top:10px;font-size:12px;color:#178e5c;background:#e7f8f1;border:1px solid #bfe9d6;border-radius:8px;padding:7px 10px;"></div>
+            <button class="btn btn-primary" id="btnActivar" style="width:100%;margin-top:14px;">Activar mi alerta gratis</button>
+            <div class="msg" id="regMsg" style="font-size:12.5px;margin-top:8px;min-height:15px;"></div>
           </div>
-          <div class="precio-box" style="display:flex;align-items:baseline;justify-content:space-between;margin-top:14px;padding:12px 14px;background:var(--verde-fuerte, #0f2b21);border:1px solid rgba(52,211,153,.3);border-radius:10px;">
-            <span style="font-size:12px;color:#9fe6c4;" id="precioLbl">Plan Gratis</span>
-            <span style="font-size:19px;font-weight:700;color:#34d399;" id="precioTxt">$0.00 MXN</span>
+
+          <div id="metodoGoogleWrap" class="oculto">
+            <a href="/.netlify/functions/google-auth?action=iniciar" id="googleRegistro" class="google-btn" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;opacity:.4;pointer-events:none;margin-top:8px;">G&nbsp; Continuar con Google</a>
+            <small style="display:block;text-align:center;color:#a0aec0;font-size:11px;margin-top:6px;">Completa tu nombre, estado y municipio arriba para habilitarlo. Si ya tienes una cuenta con este correo de Google, entrarás directo; si no, te llevamos a crearla con correo y contraseña.</small>
           </div>
-          <div id="referidoBadge" class="oculto" style="margin-top:10px;font-size:12px;color:#178e5c;background:#e7f8f1;border:1px solid #bfe9d6;border-radius:8px;padding:7px 10px;"></div>
-          <button class="btn btn-primary" id="btnActivar" style="width:100%;margin-top:14px;">Activar mi alerta gratis</button>
-          <div class="msg" id="regMsg" style="font-size:12.5px;margin-top:8px;min-height:15px;"></div>
-          <p style="text-align:center;font-size:12px;color:#a0aec0;margin:12px 0 6px;">— o —</p>
-          <a href="/.netlify/functions/google-auth?action=iniciar" id="googleRegistro" class="google-btn" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;opacity:.4;pointer-events:none;">G&nbsp; Continuar con Google</a>
-          <small style="display:block;text-align:center;color:#a0aec0;font-size:11px;margin-top:6px;">Completa tu nombre, estado y municipio arriba para habilitarlo.</small>
+
           <p style="text-align:center;margin-top:14px;font-size:13px;color:#718096;">¿Ya tienes cuenta? <button class="link-btn" id="btnIrLogin" style="font-size:13px;">Entra aquí</button></p>
         </div>
       </article>
@@ -2715,6 +2725,15 @@ function actualizarBotonGoogleRegistro(){
   $('regMunicipio').addEventListener(evt, actualizarBotonGoogleRegistro);
 });
 
+// Correo y contraseña vs. Google son dos caminos distintos — nunca se
+// muestran juntos, para no confundir cuál botón usar.
+document.querySelectorAll('[data-metodo]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-metodo]').forEach(x => x.classList.toggle('active', x === b));
+  const esGoogle = b.dataset.metodo === 'google';
+  $('metodoCorreoWrap').classList.toggle('oculto', esGoogle);
+  $('metodoGoogleWrap').classList.toggle('oculto', !esGoogle);
+}));
+
 // --- Referido (?ref=CODIGO) --------------------------------------------------
 const REFERIDO = new URLSearchParams(location.search).get('ref');
 if (REFERIDO) {
@@ -2779,7 +2798,7 @@ $('btnActivar').addEventListener('click', async () => {
       if (!resp.ok || data.error) throw new Error(data.error || 'No se pudo crear tu cuenta');
       const login = await apiAuth('login', 'POST', { email, password });
       TOKEN = login.token; localStorage.setItem('jcf_token', TOKEN); CUENTA = login.suscriptor;
-      await entrarAlPanel();
+      try { await entrarAlPanel(); } catch (err2) { console.error('Error mostrando el panel:', err2); }
     } else {
       msg.textContent = 'Generando tu pago…';
       const resp = await fetch('/.netlify/functions/create-preference', {
@@ -2841,9 +2860,23 @@ if (RESET_TOKEN) {
 }
 
 async function iniciar(){
-  if (TOKEN) {
-    try { const { suscriptor } = await apiAuth('me'); CUENTA = suscriptor; await entrarAlPanel(); return; }
-    catch { TOKEN=''; localStorage.removeItem('jcf_token'); }
+  if (!TOKEN) return;
+  let suscriptor;
+  try {
+    ({ suscriptor } = await apiAuth('me'));
+  } catch {
+    // Aquí sí falló la sesión en sí (token vencido/invalido) — ahora
+    // borrarlo es correcto.
+    TOKEN = ''; localStorage.removeItem('jcf_token');
+    return;
+  }
+  CUENTA = suscriptor;
+  try {
+    await entrarAlPanel();
+  } catch (err) {
+    // Un error al PINTAR el panel no debe borrar la sesión — el token
+    // sigue siendo válido, solo algo en el render falló.
+    console.error('Error mostrando el panel:', err);
   }
 }
 
@@ -2853,7 +2886,7 @@ $('emailLogin').addEventListener('submit', async (e) => {
   try {
     const { token, suscriptor } = await apiAuth('login', 'POST', { email: $('loginEmail').value.trim(), password: $('loginPassword').value });
     TOKEN = token; localStorage.setItem('jcf_token', token); CUENTA = suscriptor;
-    await entrarAlPanel();
+    try { await entrarAlPanel(); } catch (err2) { console.error('Error mostrando el panel:', err2); }
   } catch (err) {
     msg.textContent = err.message;
     // Tras 5 intentos fallidos, el backend bloquea el login — llevamos
@@ -2932,7 +2965,7 @@ function renderPlan(){
   $('vipFeedback').classList.toggle('oculto', !esVip);
   $('tgEmail').classList.toggle('on', CUENTA.email_enabled !== false);
   $('tgTelegram').classList.toggle('on', CUENTA.telegram_enabled !== false);
-  $('tgCall').classList.toggle('on', !!CUENTA.call_enabled);
+  $('callToggle').classList.toggle('on', !!CUENTA.call_enabled);
   $('callToggle').disabled = !esVip;
   $('callAvailability').textContent = esVip ? 'Una llamada cuando tu municipio abra.' : 'Disponible al subir a VIP.';
   $('phoneRequirement').classList.toggle('oculto', !CUENTA.call_enabled);
