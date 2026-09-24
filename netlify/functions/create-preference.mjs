@@ -99,9 +99,9 @@ export default async (req) => {
     ],
     payer: { email },
     back_urls: {
-      success: `${SITE_URL}?pago=exitoso`,
-      failure: `${SITE_URL}?pago=fallido`,
-      pending: `${SITE_URL}?pago=pendiente`
+      success: `${SITE_URL}/checkout-vip.html?pago=exitoso`,
+      failure: `${SITE_URL}/checkout-vip.html?pago=fallido`,
+      pending: `${SITE_URL}/checkout-vip.html?pago=pendiente`
     },
     auto_return: 'approved',
     notification_url: `${SITE_URL}/.netlify/functions/webhook`,

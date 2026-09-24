@@ -50,7 +50,7 @@ export function plantillaBienvenida({ plan, municipio, estado, telegramLink }) {
         <a href="${telegramLink}" style="background:#34d399;color:#06281c;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Vincular mi Telegram</a>
       </p>
       <p style="color:#9aa7bd;font-size:13px;">Si el botón no funciona, abre este link: ${telegramLink}</p>
-      <p style="color:#9aa7bd;font-size:13px;margin-top:18px;">Entra a tu panel cuando quieras en <a href="${SITE_URL}/" style="color:#34d399;">tu cuenta</a> con este correo y la contraseña que elegiste.</p>
+      <p style="color:#9aa7bd;font-size:13px;margin-top:18px;">Entra a tu panel cuando quieras en <a href="${SITE_URL}/entrar.html" style="color:#34d399;">tu cuenta</a> con este correo y la contraseña que elegiste.</p>
     </div>
   `;
 }
@@ -71,7 +71,7 @@ export function plantillaUpgradeVinculado({ municipio, estado }) {
         <p style="margin:12px 0 0;color:#9aa7bd;font-size:13px;">Plan</p>
         <p style="margin:0;font-size:16px;">★ VIP — revisión frecuente + correo y llamada, activo 14 días</p>
       </div>
-      <p style="color:#9aa7bd;font-size:13px;margin-top:18px;">Entra a tu panel cuando quieras en <a href="${SITE_URL}/" style="color:#34d399;">tu cuenta</a> con este correo y tu contraseña.</p>
+      <p style="color:#9aa7bd;font-size:13px;margin-top:18px;">Entra a tu panel cuando quieras en <a href="${SITE_URL}/entrar.html" style="color:#34d399;">tu cuenta</a> con este correo y tu contraseña.</p>
     </div>
   `;
 }

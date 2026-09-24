@@ -69,7 +69,7 @@ export default async (req) => {
     if (!code || !state || state !== stateCookie) {
       return new Response(null, {
         status: 302,
-        headers: { Location: '/?error=google_state', 'Set-Cookie': limpiarCookie }
+        headers: { Location: '/entrar.html?error=google_state', 'Set-Cookie': limpiarCookie }
       });
     }
 
@@ -100,7 +100,7 @@ export default async (req) => {
       if (!perfil.email || perfil.email_verified !== true) {
         return new Response(null, {
           status: 302,
-          headers: { Location: '/?error=google_sin_verificar', 'Set-Cookie': limpiarCookie }
+          headers: { Location: '/entrar.html?error=google_sin_verificar', 'Set-Cookie': limpiarCookie }
         });
       }
 
@@ -119,16 +119,18 @@ export default async (req) => {
       const token = await crearSesion(suscriptor.id);
       // El token va en el fragmento (#), no en la query — así no queda
       // en el historial del navegador ni se manda a ningún servidor.
+      // Va directo a /panel.html: ya sabemos que la cuenta existe, no
+      // hace falta pasar por la portada de registro ni por el login.
       return new Response(null, {
         status: 302,
-        headers: { Location: `/#token=${token}`, 'Set-Cookie': limpiarCookie }
+        headers: { Location: `/panel.html#token=${token}`, 'Set-Cookie': limpiarCookie }
       });
 
     } catch (err) {
       console.error('Error en callback de Google:', err.message);
       return new Response(null, {
         status: 302,
-        headers: { Location: '/?error=google_falla', 'Set-Cookie': limpiarCookie }
+        headers: { Location: '/entrar.html?error=google_falla', 'Set-Cookie': limpiarCookie }
       });
     }
   }
