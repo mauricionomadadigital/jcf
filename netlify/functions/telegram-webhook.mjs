@@ -68,7 +68,7 @@ export default async (req) => {
     if (!match) {
       // Cualquier otro mensaje: recordatorio breve, sin exponer lógica interna.
       if (texto === '/start') {
-        await enviarMensaje(chatId, 'Para vincular tu monitoreo, abre el link que te llegó por correo después de tu pago.');
+        await enviarMensaje(chatId, 'Para vincular tu monitoreo, abre el link que te llegó por correo al registrarte (revisa también spam), o el botón de Telegram en tu panel.');
       }
       return new Response('OK', { status: 200 });
     }

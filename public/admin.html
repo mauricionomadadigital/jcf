@@ -2529,7 +2529,7 @@
             <div class="action-row">
               <div class="screen-heading">
                 <h2>Pagos y suscripciones</h2>
-                <p>Periodo VIP de 14 días — $100 MXN por ciclo, con descuento de continuidad si no hubo éxito.</p>
+                <p>Periodo VIP de 14 días — precio configurable en Configuración, con descuento de continuidad si no hubo éxito.</p>
               </div>
               <button class="btn btn-outline" id="btnExportarPagos">⇩ Descargar reporte</button>
             </div>
@@ -2691,8 +2691,17 @@
                   </select>
                 </div>
                 <button class="btn btn-secondary" id="btnGuardarFrecuencias">Guardar frecuencias</button>
-                <div class="field" style="margin-top:10px;"><label>Precio VIP</label><input value="$100 MXN · 14 días" readonly /></div>
                 <div class="notice">Ambos planes reciben Telegram + correo cuando su municipio abre. Solo VIP recibe además llamada y recordatorios reforzados — eso, y la velocidad, es lo que diferencia el plan pagado.</div>
+              </article>
+              <article class="card setting-card">
+                <h3>Precio VIP y oferta</h3>
+                <p>Lo que se cobra en MercadoPago y lo que ven los clientes en el panel y el checkout. Cambia al instante, sin redeploy.</p>
+                <div class="field"><label for="cfgPrecioVip">Precio que se cobra (MXN, 14 días)</label><input id="cfgPrecioVip" type="number" min="1" step="1" placeholder="Ej. 208" /></div>
+                <div class="field"><label for="cfgPrecioRegular">Precio normal tachado (opcional)</label><input id="cfgPrecioRegular" type="number" min="0" step="1" placeholder="Ej. 800 — vacío para no mostrarlo" /></div>
+                <div class="field"><label for="cfgOfertaTexto">Texto de oferta (opcional)</label><input id="cfgOfertaTexto" type="text" maxlength="140" placeholder="Ej. Oferta: últimos 100 cupos a $208, después $800" /></div>
+                <div class="field"><label for="cfgEscasezTexto">Texto de escasez (opcional)</label><input id="cfgEscasezTexto" type="text" maxlength="140" placeholder="Ej. Últimos 15 lugares por exceso de usuarios en la plataforma" /></div>
+                <button class="btn btn-secondary" id="btnGuardarPrecio">Guardar precio y oferta</button>
+                <div class="notice">Los textos son libres y no llevan contador automático: actualízalos tú y asegúrate de que lo que digan sea cierto (PROFECO sanciona la publicidad engañosa). Déjalos vacíos para ocultarlos.</div>
               </article>
               <article class="card setting-card">
                 <h3>Regla de llamada</h3>
@@ -3046,7 +3055,7 @@ async function cargarPagos() {
   const c70 = pagos.filter(p => p.discount_percent === 70).length;
   $('pagosStats').innerHTML = `
     <article class="stat"><div class="stat-label">Ingresos del ciclo</div><div class="stat-value">${money(totalIngresos)}</div><span class="delta">${pagos.length} pagos aprobados</span></article>
-    <article class="stat"><div class="stat-label">Ticket VIP</div><div class="stat-value">$100</div><span class="delta neutral">14 días</span></article>
+    <article class="stat"><div class="stat-label">Ticket VIP</div><div class="stat-value">${money(Number(CONFIG_CACHE?.vip_precio) || 100)}</div><span class="delta neutral">14 días</span></article>
     <article class="stat"><div class="stat-label">Beneficios 50 %</div><div class="stat-value">${c50}</div><span class="delta neutral">Segundo ciclo</span></article>
     <article class="stat"><div class="stat-label">Beneficios 70 %</div><div class="stat-value">${c70}</div><span class="delta neutral">Tercer ciclo</span></article>`;
   $('tablaPagos').innerHTML = pagos.map(p => `
@@ -3090,6 +3099,10 @@ async function cargarCiclos() {
   $('cfgVideo2').value = CONFIG_CACHE.video2_url || '';
   $('cfgFrecVip').value = String(CONFIG_CACHE.vip_frecuencia_min || 10);
   $('cfgFrecFree').value = String(CONFIG_CACHE.free_frecuencia_min || 120);
+  $('cfgPrecioVip').value = CONFIG_CACHE.vip_precio ?? 100;
+  $('cfgPrecioRegular').value = CONFIG_CACHE.vip_precio_regular ?? '';
+  $('cfgOfertaTexto').value = CONFIG_CACHE.vip_oferta_texto || '';
+  $('cfgEscasezTexto').value = CONFIG_CACHE.vip_escasez_texto || '';
   $('tgLectura').classList.toggle('on', CONFIG_CACHE.mostrar_lectura_real !== false);
   $('tgGuia').classList.toggle('on', CONFIG_CACHE.incluir_guia_documentos !== false);
   $('tgEncuesta').classList.toggle('on', CONFIG_CACHE.enviar_encuesta_final !== false);
@@ -3165,6 +3178,22 @@ $('btnGuardarFrecuencias').addEventListener('click', async () => {
     });
     CONFIG_CACHE = config;
     notify('Frecuencias guardadas — el cron las respeta desde la próxima corrida, sin redeploy.');
+  } catch (err) { notify('Error: ' + err.message); }
+});
+$('btnGuardarPrecio').addEventListener('click', async () => {
+  const precio = Number($('cfgPrecioVip').value);
+  const regular = $('cfgPrecioRegular').value === '' ? null : Number($('cfgPrecioRegular').value);
+  if (!(precio > 0)) { notify('Escribe un precio VIP mayor a 0.'); return; }
+  if (regular !== null && regular <= precio) { notify('El precio tachado debe ser mayor al que se cobra (o déjalo vacío).'); return; }
+  try {
+    const { config } = await api('config', 'POST', {
+      vip_precio: precio,
+      vip_precio_regular: regular,
+      vip_oferta_texto: $('cfgOfertaTexto').value.trim() || null,
+      vip_escasez_texto: $('cfgEscasezTexto').value.trim() || null
+    });
+    CONFIG_CACHE = config;
+    notify('Precio y oferta guardados — se cobran y se muestran desde ya.');
   } catch (err) { notify('Error: ' + err.message); }
 });
 </script>

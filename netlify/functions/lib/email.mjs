@@ -9,8 +9,26 @@ const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-comercial.netlify.
 // Nota temporal (igual que en el proyecto original): mientras se compra
 // un dominio propio, se manda desde la dirección ya verificada en Resend.
 const FROM = 'Monitor JCF <noreply@bookbuilderai.online>';
+// Las respuestas llegan a un buzón real — un "noreply" sin reply-to
+// resta confianza ante los filtros de spam.
+const REPLY_TO = 'maurixcasas@gmail.com';
+
+// Versión de texto plano del mismo correo. Un correo solo-HTML es una
+// señal típica de spam; con las dos versiones Gmail confía más.
+function htmlATexto(html) {
+  return html
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href, txt) => `${txt.replace(/<[^>]+>/g, '').trim()} (${href})`)
+    .replace(/<(br|\/p|\/div|\/h\d|\/li|\/tr)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n\s*\n+/g, '\n\n')
+    .trim();
+}
 
 export async function enviarCorreo(to, subject, html) {
+  // Emojis al inicio del asunto también suman puntos de spam.
+  subject = subject.replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '');
   if (!RESEND_API_KEY) {
     console.warn('RESEND_API_KEY no configurado');
     await registrarFallo({ tipo: 'correo', origen: 'enviarCorreo', detalle: `RESEND_API_KEY no configurado (destinatario: ${to})` });
@@ -22,7 +40,7 @@ export async function enviarCorreo(to, subject, html) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ from: FROM, to, subject, html })
+    body: JSON.stringify({ from: FROM, to, subject, html, text: htmlATexto(html), reply_to: REPLY_TO })
   });
   if (!res.ok) {
     const err = await res.text();
@@ -50,7 +68,7 @@ export function plantillaBienvenida({ plan, municipio, estado, telegramLink }) {
         <a href="${telegramLink}" style="background:#34d399;color:#06281c;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Vincular mi Telegram</a>
       </p>
       <p style="color:#9aa7bd;font-size:13px;">Si el botón no funciona, abre este link: ${telegramLink}</p>
-      <p style="color:#9aa7bd;font-size:13px;margin-top:18px;">Entra a tu panel cuando quieras en <a href="${SITE_URL}/entrar.html" style="color:#34d399;">tu cuenta</a> con este correo y la contraseña que elegiste.</p>
+      <p style="color:#9aa7bd;font-size:13px;margin-top:18px;">Entra a tu panel cuando quieras en <a href="${SITE_URL}/entrar.html" style="color:#34d399;">tu cuenta</a> con este correo (con tu contraseña o con el botón de Google).</p>
     </div>
   `;
 }

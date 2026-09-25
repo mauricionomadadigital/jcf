@@ -13,6 +13,7 @@ import { getStore } from '@netlify/blobs';
 import { enviarTelegram } from './lib/dtmlp.mjs';
 import { enviarCorreo } from './lib/email.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
+import { normalizarPrecio, formatoMxn } from './lib/precio.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -42,7 +43,7 @@ async function leerSuscriptoresActivos() {
   return res.json();
 }
 
-function textoTelegram({ dias, municipio, estado, esFree, bajaLink }) {
+function textoTelegram({ dias, municipio, estado, esFree, bajaLink, precioTxt }) {
   const base = `⏳ Faltan ${dias} día${dias === 1 ? '' : 's'} para que abra el registro de Jóvenes Construyendo el Futuro en ${municipio}, ${estado}.
 
 📝 Haz tu preregistro en la plataforma oficial en cuanto esté disponible.
@@ -50,13 +51,13 @@ function textoTelegram({ dias, municipio, estado, esFree, bajaLink }) {
 🤳 También te van a pedir tomarte una selfie ese día — prepárate.`;
 
   const upsell = esFree
-    ? `\n\nActualmente tienes el plan Gratis. Con VIP ($100 MXN, 14 días) además de Telegram recibes correo y una llamada automática en cuanto abra tu municipio — más posibilidades de enterarte a tiempo. Súbete aquí: ${SITE_URL}/checkout-vip.html`
+    ? `\n\nActualmente tienes el plan Gratis. Con VIP (${precioTxt}, 14 días) además de Telegram recibes correo y una llamada automática en cuanto abra tu municipio — más posibilidades de enterarte a tiempo. Súbete aquí: ${SITE_URL}/checkout-vip.html`
     : '';
 
   return `${base}${upsell}\n\nSi no quieres recibir más recordatorios como este, date de baja aquí: ${bajaLink}`;
 }
 
-function htmlCorreo({ dias, municipio, estado, esFree, bajaLink }) {
+function htmlCorreo({ dias, municipio, estado, esFree, bajaLink, precioTxt }) {
   return `
     <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:32px;background:#0a1220;color:#eef2f9;border-radius:16px;">
       <h1 style="color:#34d399;margin-bottom:8px;">⏳ Faltan ${dias} día${dias === 1 ? '' : 's'}</h1>
@@ -71,7 +72,7 @@ function htmlCorreo({ dias, municipio, estado, esFree, bajaLink }) {
         <li>Ten a la mano tu <strong>INE</strong>, tu <strong>CURP</strong> y un <strong>comprobante de domicilio original</strong>.</li>
         <li>Te van a pedir tomarte una <strong>selfie</strong> el día de la apertura.</li>
       </ul>
-      ${esFree ? `<p style="background:#101c30;border-radius:10px;padding:14px;border:1px solid rgba(52,211,153,0.2);">Actualmente tienes el plan <strong>Gratis</strong>. Con <strong>VIP</strong> ($100 MXN, 14 días) además de Telegram recibes correo y una <strong>llamada automática</strong> en cuanto abra tu municipio. <a href="${SITE_URL}/checkout-vip.html" style="color:#34d399;">Súbete a VIP</a>.</p>` : ''}
+      ${esFree ? `<p style="background:#101c30;border-radius:10px;padding:14px;border:1px solid rgba(52,211,153,0.2);">Actualmente tienes el plan <strong>Gratis</strong>. Con <strong>VIP</strong> (${precioTxt}, 14 días) además de Telegram recibes correo y una <strong>llamada automática</strong> en cuanto abra tu municipio. <a href="${SITE_URL}/checkout-vip.html" style="color:#34d399;">Súbete a VIP</a>.</p>` : ''}
       <p style="color:#9aa7bd;font-size:12px;margin-top:20px;">Si no quieres recibir más recordatorios como este, <a href="${bajaLink}" style="color:#9aa7bd;">date de baja aquí</a>.</p>
     </div>
   `;
@@ -94,6 +95,7 @@ export default async () => {
 
     const dias = Math.ceil((new Date(config.fecha_estimada_apertura) - new Date(hoy)) / 86400000);
     const suscriptores = await leerSuscriptoresActivos();
+    const precioTxt = formatoMxn(normalizarPrecio(config).vip_precio);
 
     let telegramEnviados = 0;
     let correoEnviados = 0;
@@ -105,7 +107,7 @@ export default async () => {
       if (s.telegram_enabled !== false && s.telegram_chat_id) {
         const ok = await enviarTelegram(
           TELEGRAM_BOT_TOKEN, s.telegram_chat_id,
-          textoTelegram({ dias, municipio: s.municipio, estado: s.estado, esFree, bajaLink })
+          textoTelegram({ dias, municipio: s.municipio, estado: s.estado, esFree, bajaLink, precioTxt })
         );
         if (ok) telegramEnviados++;
       }
@@ -113,7 +115,7 @@ export default async () => {
         await enviarCorreo(
           s.email,
           `⏳ Faltan ${dias} día${dias === 1 ? '' : 's'} para la apertura — Monitor JCF`,
-          htmlCorreo({ dias, municipio: s.municipio, estado: s.estado, esFree, bajaLink })
+          htmlCorreo({ dias, municipio: s.municipio, estado: s.estado, esFree, bajaLink, precioTxt })
         );
         correoEnviados++;
       }

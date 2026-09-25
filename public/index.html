@@ -2221,6 +2221,23 @@
       body{background:var(--navy);}
       .full-stage{min-height:100vh;padding:26px 16px;}
       .oculto{display:none !important;}
+
+      /* Botones con logo (Google / correo) */
+      .google-btn, .reg-toggle button { display: flex !important; align-items: center; justify-content: center; gap: 9px; }
+      .g-logo { flex: 0 0 auto; }
+      /* "Puedes elegir uno u otro": tiembla uno, luego el otro, en bucle,
+         hasta que la persona interactúa. */
+      @keyframes turnoEleccion {
+        0%, 12%, 100% { transform: none; box-shadow: none; }
+        2% { transform: translateX(-4px) rotate(-1deg); box-shadow: 0 0 0 3px rgba(41,155,215,.25); }
+        4% { transform: translateX(4px) rotate(1deg); box-shadow: 0 0 0 3px rgba(41,155,215,.25); }
+        6% { transform: translateX(-3px) rotate(-.5deg); box-shadow: 0 0 0 3px rgba(41,155,215,.25); }
+        8% { transform: translateX(3px); box-shadow: 0 0 0 3px rgba(41,155,215,.2); }
+        10% { transform: translateX(-1px); }
+      }
+      .turno-a { animation: turnoEleccion 5s ease-in-out infinite; }
+      .turno-b { animation: turnoEleccion 5s ease-in-out 2.5s infinite; }
+      @media (prefers-reduced-motion: reduce) { .turno-a, .turno-b { animation: none; } }
       .reg-toggle{display:flex;gap:8px;margin:14px 0 4px;}
       .reg-toggle button{flex:1;border:1px solid var(--line);background:#fff;color:#29445f;border-radius:9px;padding:9px;font-weight:750;font-size:13px;}
       .reg-toggle button.active{background:var(--blue);color:#fff;border-color:var(--blue);}
@@ -2256,8 +2273,8 @@
           <div class="field"><label for="regEstado">Estado</label><select id="regEstado" disabled><option>Cargando estados…</option></select></div>
           <div class="field"><label for="regMunicipio">Municipio</label><select id="regMunicipio" disabled><option>Elige primero tu estado</option></select></div>
           <div class="reg-toggle" style="margin-top:6px;">
-            <button type="button" class="active" data-metodo="correo">Correo y contraseña</button>
-            <button type="button" data-metodo="google">Con Google</button>
+            <button type="button" class="active turno-a" data-metodo="correo"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Correo y contraseña</span></button>
+            <button type="button" class="turno-b" data-metodo="google"><svg class="g-logo" viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Con Google</span></button>
           </div>
 
           <div id="metodoCorreoWrap">
@@ -2287,7 +2304,7 @@
           </div>
 
           <div id="metodoGoogleWrap" class="oculto">
-            <a href="#" id="googleRegistro" class="google-btn" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;opacity:.4;pointer-events:none;margin-top:8px;">G&nbsp; Continuar con Google</a>
+            <a href="#" id="googleRegistro" class="google-btn" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;opacity:.4;pointer-events:none;margin-top:8px;"><svg class="g-logo" viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Continuar con Google</span></a>
             <small style="display:block;text-align:center;color:#a0aec0;font-size:11px;margin-top:6px;">Completa tu nombre, estado y municipio arriba para habilitarlo. Creamos tu cuenta gratis con tu correo de Google (sin contraseña). Si ya tenías cuenta con ese correo, entras directo a ella.</small>
           </div>
 
@@ -2305,6 +2322,7 @@
             </tr>
           </thead>
           <tbody>
+            <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Precio</td><td style="padding:7px 4px;">$0</td><td style="padding:7px 4px;font-weight:600;" id="tablaPrecioVip">$100 MXN</td></tr>
             <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Revisión</td><td style="padding:7px 4px;" id="tablaFrecFree">Cada 2 horas</td><td style="padding:7px 4px;font-weight:600;" id="tablaFrecVip">Cada 10 minutos</td></tr>
             <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Telegram</td><td style="padding:7px 4px;">✔</td><td style="padding:7px 4px;font-weight:600;">✔</td></tr>
             <tr style="border-top:1px solid #e5e9ef;"><td style="padding:7px 4px;color:#4a5568;">Correo</td><td style="padding:7px 4px;">✔</td><td style="padding:7px 4px;font-weight:600;">✔</td></tr>
@@ -2393,6 +2411,8 @@ function actualizarTablaComparativa(){
   const frecVip = textoFrecuenciaReg(FRECUENCIAS_PUBLICAS.vip_frecuencia_min);
   $('tablaFrecFree').textContent = `Cada ${frecFree}`;
   $('tablaFrecVip').textContent = `Cada ${frecVip}`;
+  const pv = FRECUENCIAS_PUBLICAS.vip_precio || 100, pr = FRECUENCIAS_PUBLICAS.vip_precio_regular;
+  $('tablaPrecioVip').innerHTML = (pr ? `<s style="color:#a0aec0;font-weight:400;">${pr}</s> ` : '') + `${pv} MXN`;
   $('tablaComparativaNota').textContent = `Es una estimación, no una garantía: los cupos suelen llenarse en minutos. Con Gratis, una apertura puede pasar y cerrarse antes de tu siguiente revisión de ${frecFree}. Con VIP revisamos cada ${frecVip} y además de Telegram y correo te llamamos por teléfono — tres formas distintas de que sí te enteres a tiempo.`;
 }
 (async () => {
@@ -2437,7 +2457,8 @@ $('googleRegistro').addEventListener('click', (e) => {
 // Correo y contraseña vs. Google son dos caminos distintos — nunca se
 // muestran juntos, para no confundir cuál botón usar.
 document.querySelectorAll('[data-metodo]').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('[data-metodo]').forEach(x => x.classList.toggle('active', x === b));
+  // Ya eligió: se acaba la animación de "elige uno u otro".
+  document.querySelectorAll('[data-metodo]').forEach(x => { x.classList.toggle('active', x === b); x.classList.remove('turno-a', 'turno-b'); });
   const esGoogle = b.dataset.metodo === 'google';
   $('metodoCorreoWrap').classList.toggle('oculto', esGoogle);
   $('metodoGoogleWrap').classList.toggle('oculto', !esGoogle);

@@ -263,8 +263,12 @@ export default async (req) => {
         'registro_abierto', 'periodo_inicio', 'periodo_fin', 'fecha_estimada_apertura',
         'encuesta_fecha', 'siguiente_ciclo_fecha', 'video1_url', 'video2_url',
         'mostrar_lectura_real', 'incluir_guia_documentos', 'enviar_encuesta_final',
-        'vip_frecuencia_min', 'free_frecuencia_min'
+        'vip_frecuencia_min', 'free_frecuencia_min',
+        'vip_precio', 'vip_precio_regular', 'vip_oferta_texto', 'vip_escasez_texto'
       ].forEach(k => { if (body[k] !== undefined) permitido[k] = body[k]; });
+      if (permitido.vip_precio !== undefined && !(Number(permitido.vip_precio) > 0)) {
+        return json({ error: 'El precio VIP debe ser mayor a 0.' }, 400);
+      }
       return json({ ok: true, config: await setConfig(permitido) });
     }
 

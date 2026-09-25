@@ -2001,6 +2001,10 @@
       .mobile-upgrade {
         display: none;
       }
+      .oferta-vip, .escasez-vip { margin: 0 0 10px; padding: 8px 10px; border-radius: 9px; font-size: 12.5px; font-weight: 750; }
+      .oferta-vip { background: #fff4e5; color: #9a4b00; border: 1px solid #ffd59a; }
+      .escasez-vip { background: #fdecec; color: #b42318; border: 1px solid #f5b5b5; }
+      .mobile-escasez { text-align: center; font-size: 12px; font-weight: 800; color: #b42318; margin: 0 0 6px; }
       .section-anchor {
         scroll-margin-top: 92px;
       }
@@ -2409,6 +2413,8 @@
           <article class="upgrade-card" id="upgradeCard">
             <h3>⚡ Entérate mucho más rápido</h3>
             <p>VIP revisa muchas más veces por hora que Gratis, y además de Telegram y correo te llamamos por teléfono en cuanto abra tu municipio — 14 días de cobertura completa.</p>
+            <div class="oferta-vip oculto" id="upgradeOferta"></div>
+            <div class="escasez-vip oculto" id="upgradeEscasez"></div>
             <button class="btn" id="upgradeButton">Subir a VIP — $100 MXN</button>
           </article>
 
@@ -2438,7 +2444,7 @@
             </div>
             <div class="channel-option">
               <div class="channel-icon tg">✈</div>
-              <div><strong>Telegram</strong><p>Canal principal para resultados y reportes.</p></div>
+              <div><strong>Telegram</strong><p>Canal principal para resultados y reportes.</p><a id="vincularTelegram" class="oculto" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:7px 12px;border-radius:9px;background:#229ED9;color:#fff;font-weight:800;font-size:12.5px;text-decoration:none;">✈ Vincular mi Telegram</a><span id="telegramVinculado" class="oculto" style="display:block;margin-top:4px;font-size:12px;color:#178e5c;font-weight:700;">✔ Telegram vinculado</span></div>
               <button class="toggle on" id="tgTelegram" data-channel="telegram" aria-label="Activar Telegram"></button>
             </div>
             <div class="channel-option">
@@ -2509,6 +2515,7 @@
 </div>
 
 <div class="mobile-upgrade oculto" id="mobileUpgrade">
+  <div class="mobile-escasez oculto" id="mobileEscasez"></div>
   <button class="btn" id="mobileUpgradeButton">⚡ Subir a VIP — $100 MXN</button>
 </div>
 
@@ -2644,6 +2651,7 @@ function renderPlan(){
   $('upgradeCard').classList.toggle('oculto', esVip);
   $('mobileUpgrade').classList.toggle('oculto', esVip);
   document.body.classList.toggle('con-cta-vip', !esVip);
+  ajustarEspacioBarra();
   // La encuesta solo se muestra hasta el final del ciclo (fecha de
   // encuesta, o si no está configurada, fin del periodo) — antes de eso
   // solo confundiría a alguien que apenas se registró.
@@ -2702,11 +2710,47 @@ function textoFrecuencia(min){
   if (min % 60 === 0) { const h = min / 60; return h === 1 ? '1 hora' : `${h} horas`; }
   return `${min} minutos`;
 }
+// Si aún no vincula Telegram, el enlace también vive aquí (el correo
+// puede caer en spam). Mismo link que el del correo de bienvenida.
+function pintarTelegram(cfg){
+  const vinculado = !!CUENTA?.telegram_chat_id;
+  const puede = !vinculado && cfg.telegram_bot && CUENTA?.telegram_token;
+  if (puede) $('vincularTelegram').href = `https://t.me/${cfg.telegram_bot}?start=${CUENTA.telegram_token}`;
+  $('vincularTelegram').classList.toggle('oculto', !puede);
+  $('telegramVinculado').classList.toggle('oculto', !vinculado);
+}
+
+// Precio VIP y textos de oferta/escasez, configurables desde el admin.
+function pintarPrecioVip(cfg){
+  const precio = cfg.vip_precio || 100;
+  const regular = cfg.vip_precio_regular;
+  $('upgradeButton').innerHTML = `Subir a VIP — ${regular ? `<s style="opacity:.75;font-weight:600;">${regular}</s> ` : ''}${precio} MXN`;
+  $('mobileUpgradeButton').textContent = `⚡ Subir a VIP — ${precio} MXN`;
+  const oferta = cfg.vip_oferta_texto, escasez = cfg.vip_escasez_texto;
+  $('upgradeOferta').textContent = oferta ? '🔥 ' + oferta : '';
+  $('upgradeOferta').classList.toggle('oculto', !oferta);
+  $('upgradeEscasez').textContent = escasez ? '⚠️ ' + escasez : '';
+  $('upgradeEscasez').classList.toggle('oculto', !escasez);
+  // En la barra fija del celular solo cabe una línea: escasez, o si no hay, la oferta.
+  const linea = escasez ? '⚠️ ' + escasez : (oferta ? '🔥 ' + oferta : '');
+  $('mobileEscasez').textContent = linea;
+  $('mobileEscasez').classList.toggle('oculto', !linea);
+  ajustarEspacioBarra();
+}
+// El final de la página no debe quedar tapado por la barra fija, mida lo que mida.
+function ajustarEspacioBarra(){
+  const barra = $('mobileUpgrade');
+  document.body.style.paddingBottom = barra.offsetHeight ? barra.offsetHeight + 'px' : '';
+}
+window.addEventListener('resize', ajustarEspacioBarra);
+
 async function cargarVideos(){
   try {
     const resp = await fetch('/.netlify/functions/config-publica');
     const data = await resp.json();
     CONFIG_PUBLICA = data;
+    pintarPrecioVip(data);
+    pintarTelegram(data);
     if (data.video1_url) { $('video1Link').href = data.video1_url; $('video1Placeholder').innerHTML = `<a href="${data.video1_url}" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;">▶ Ver tutorial 1</a>`; }
     if (data.video2_url) { $('video2Link').href = data.video2_url; $('video2Placeholder').innerHTML = `<a href="${data.video2_url}" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;">▶ Ver tutorial 2</a>`; }
     const esVip = CUENTA?.plan === 'vip';

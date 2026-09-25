@@ -4,10 +4,10 @@
 
 import { hashPassword, buscarSuscriptorPorEmail, suscriptorDesdeToken, tokenDesdeRequest } from './lib/auth.mjs';
 import { registroEstaAbierto } from './lib/config.mjs';
+import { precioVip } from './lib/precio.mjs';
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 const SITE_URL = process.env.SITE_URL || 'https://CAMBIA-ESTO.netlify.app';
-const PRECIO_VIP = 100.00;
 
 export default async (req) => {
   if (req.method !== 'POST') {
@@ -82,7 +82,9 @@ export default async (req) => {
   // se cobra — antes se guardaba el descuento pero nunca se aplicaba.
   const cuentaExistente = cuentaLogueada || await buscarSuscriptorPorEmail(email);
   const descuento = cuentaExistente?.plan === 'vip' ? (cuentaExistente.discount_percent || 0) : 0;
-  const precioFinal = Math.round(PRECIO_VIP * (1 - descuento / 100) * 100) / 100;
+  // Precio vigente fijado por el administrador en el panel.
+  const { vip_precio } = await precioVip();
+  const precioFinal = Math.round(vip_precio * (1 - descuento / 100) * 100) / 100;
 
   const preference = {
     items: [
