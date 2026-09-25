@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#091a2f" />
     <meta name="description" content="Monitor JCF 24/7 — activa tu alerta y administra tu cuenta" />
     <title>JCF Monitor 24/7 · Mi panel</title>
@@ -2157,13 +2157,26 @@
         .cycle-count {
           text-align: left;
         }
+        /* CTA VIP fijo al pie, estilo "Agregar al carrito" de Shopify: la
+           página se desliza por detrás y el botón nunca se va. Solo se
+           muestra a cuentas Gratis (renderPlan le quita .oculto). */
         .mobile-upgrade {
           display: block;
           position: fixed;
-          z-index: 18;
-          left: 14px;
-          right: 14px;
-          bottom: 12px;
+          z-index: 25;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+          background: rgba(255, 255, 255, 0.92);
+          -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(15, 23, 42, 0.08);
+          box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.1);
+        }
+        /* Espacio al final para que el último contenido no quede tapado. */
+        body.con-cta-vip {
+          padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
         }
         .mobile-upgrade .btn {
           width: 100%;
@@ -2490,12 +2503,13 @@
           </article>
         </aside>
       </div>
-      <div class="mobile-upgrade" id="mobileUpgrade">
-        <button class="btn" id="mobileUpgradeButton">⚡ Subir a VIP</button>
-      </div>
     </div>
   </div>
 </div>
+</div>
+
+<div class="mobile-upgrade oculto" id="mobileUpgrade">
+  <button class="btn" id="mobileUpgradeButton">⚡ Subir a VIP — $100 MXN</button>
 </div>
 
 <footer class="sitio-footer">
@@ -2629,6 +2643,7 @@ function renderPlan(){
   $('customerPlanChip').className = 'plan-pill ' + (esVip ? 'plan-vip' : 'plan-free');
   $('upgradeCard').classList.toggle('oculto', esVip);
   $('mobileUpgrade').classList.toggle('oculto', esVip);
+  document.body.classList.toggle('con-cta-vip', !esVip);
   // La encuesta solo se muestra hasta el final del ciclo (fecha de
   // encuesta, o si no está configurada, fin del periodo) — antes de eso
   // solo confundiría a alguien que apenas se registró.
