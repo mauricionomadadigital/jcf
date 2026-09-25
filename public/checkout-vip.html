@@ -2362,8 +2362,8 @@ async function cargarCheckout(){
   let frecVip = 10, cfg = {};
   try { const r = await fetch('/.netlify/functions/config-publica'); cfg = await r.json(); frecVip = cfg.vip_frecuencia_min || 10; } catch {}
   const precio = cfg.vip_precio || 100;
-  $('vipPrecioActual').textContent = `${precio} MXN`;
-  if (cfg.vip_precio_regular) { $('vipPrecioRegular').textContent = `${cfg.vip_precio_regular}`; $('vipPrecioRegular').classList.remove('oculto'); }
+  $('vipPrecioActual').textContent = `$${precio} MXN`;
+  if (cfg.vip_precio_regular) { $('vipPrecioRegular').textContent = `$${cfg.vip_precio_regular}`; $('vipPrecioRegular').classList.remove('oculto'); }
   if (cfg.vip_oferta_texto) { $('vipOferta').textContent = '🔥 ' + cfg.vip_oferta_texto; $('vipOferta').classList.remove('oculto'); }
   if (cfg.vip_escasez_texto) { $('vipEscasez').textContent = '⚠️ ' + cfg.vip_escasez_texto; $('vipEscasez').classList.remove('oculto'); }
 

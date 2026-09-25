@@ -2778,8 +2778,8 @@ $('btnSoporteUpgrade').addEventListener('click', () => { location.href = '/check
 function pintarPrecioVip(cfg){
   const precio = cfg.vip_precio || 100;
   const regular = cfg.vip_precio_regular;
-  $('upgradeButton').innerHTML = `Subir a VIP — ${regular ? `<s style="opacity:.75;font-weight:600;">${regular}</s> ` : ''}${precio} MXN`;
-  $('mobileUpgradeButton').textContent = `⚡ Subir a VIP — ${precio} MXN`;
+  $('upgradeButton').innerHTML = `Subir a VIP — ${regular ? `<s style="opacity:.75;font-weight:600;">$${regular}</s> ` : ''}$${precio} MXN`;
+  $('mobileUpgradeButton').textContent = `⚡ Subir a VIP — $${precio} MXN`;
   const oferta = cfg.vip_oferta_texto, escasez = cfg.vip_escasez_texto;
   $('upgradeOferta').textContent = oferta ? '🔥 ' + oferta : '';
   $('upgradeOferta').classList.toggle('oculto', !oferta);
