@@ -1589,6 +1589,25 @@
         gap: 9px;
         padding-top: 8px;
       }
+      /* --- Mensajes masivos y soporte --- */
+      .msg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      @media (max-width: 900px) { .msg-grid { grid-template-columns: 1fr; } }
+      .msg-box { padding: 0 20px 20px; }
+      .msg-box textarea, .chat-reply textarea { width: 100%; min-height: 120px; resize: vertical; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font: inherit; font-size: 14px; box-sizing: border-box; }
+      .msg-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+      .msg-foot small { color: var(--muted); }
+      .btn-enviar { display: inline-flex; align-items: center; gap: 8px; }
+      .btn-enviar svg { width: 17px; height: 17px; }
+      .soporte-badge { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: #29445f; }
+      .soporte-badge.nuevo { background: #fdecec; border-color: #f5b5b5; color: #b42318; }
+      .chat-hilo { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 12px; }
+      .burbuja { max-width: 85%; padding: 9px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+      .burbuja small { display: block; margin-top: 4px; font-size: 11px; opacity: .7; }
+      .burbuja.cliente { align-self: flex-start; background: #f1f5f9; }
+      .burbuja.admin { align-self: flex-end; background: #229ED9; color: #fff; }
+      .chat-reply textarea { min-height: 80px; }
+      .bandeja-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 20px; border-top: 1px solid var(--line); cursor: pointer; }
+      .bandeja-item:hover { background: #f7f9fc; }
       .toast {
         position: fixed;
         right: 24px;
@@ -2206,6 +2225,14 @@
           </button>
           <button
             class="nav-btn"
+            data-screen="messages"
+            data-title="Mensajes y soporte"
+            data-subtitle="Avisos masivos por Telegram y chat de soporte VIP"
+          >
+            <svg viewBox="0 0 24 24" fill="none"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Mensajes <span id="navSoporteBadge" class="oculto" style="margin-left:auto;background:#b42318;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;"></span>
+          </button>
+          <button
+            class="nav-btn"
             data-screen="alerts"
             data-title="Centro de alertas"
             data-subtitle="Historial de avisos y entregas"
@@ -2444,7 +2471,7 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Usuario</th><th>Plan</th><th>Municipio</th><th>Canales</th><th>Alta</th><th>Estado</th><th>Acciones</th>
+                      <th>Usuario</th><th>Plan</th><th>Municipio</th><th>Canales</th><th>Soporte</th><th>Alta</th><th>Estado</th><th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="tablaUsuarios"></tbody>
@@ -2463,6 +2490,47 @@
                 </div>
                 <button class="btn btn-outline" id="btnTestMunicipio">Probar solo este estado/municipio</button>
                 <div class="msg" id="testMsg" style="font-size:12.5px;color:var(--muted);margin-top:9px;"></div>
+              </div>
+            </article>
+          </section>
+
+          <section class="screen" id="messages">
+            <div class="screen-heading">
+              <h2>Mensajes masivos por Telegram</h2>
+              <p>Llegan por el bot a los clientes activos con Telegram vinculado. Ideal para recordatorios, invitaciones y links. Los enlaces se vuelven clicables solos.</p>
+            </div>
+            <div class="msg-grid">
+              <article class="card">
+                <div class="card-head"><div><h2>★ Clientes VIP</h2><p id="destVip">— destinatarios</p></div></div>
+                <div class="msg-box">
+                  <textarea id="txtDifusionVip" maxlength="4000" placeholder="Ej. Recordatorio: mañana abre la plataforma, ten a la mano tu INE y CURP. Guía: https://..."></textarea>
+                  <div class="msg-foot"><small id="cntVip">0 / 4000</small><button class="btn btn-primary btn-enviar" data-difusion="vip"><svg viewBox="0 0 24 24" fill="none"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Enviar a VIP</button></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="card-head"><div><h2>Clientes Gratis</h2><p id="destFree">— destinatarios</p></div></div>
+                <div class="msg-box">
+                  <textarea id="txtDifusionFree" maxlength="4000" placeholder="Ej. ¡Sube a VIP y recibe una llamada cuando abra tu municipio! https://monitor-jcf-v2.netlify.app/checkout-vip.html"></textarea>
+                  <div class="msg-foot"><small id="cntFree">0 / 4000</small><button class="btn btn-primary btn-enviar" data-difusion="free"><svg viewBox="0 0 24 24" fill="none"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Enviar a Gratis</button></div>
+                </div>
+              </article>
+            </div>
+
+            <article class="card table-card" style="margin-top:18px;">
+              <div class="card-head">
+                <div><h2>💬 Soporte VIP</h2><p>Mensajes que tus clientes VIP te escriben desde su panel o directo al bot. Tu respuesta les llega por Telegram.</p></div>
+                <button class="btn btn-secondary" id="btnRefrescarSoporte">Actualizar</button>
+              </div>
+              <div id="bandejaSoporte"><p class="muted" style="padding:0 20px 16px;">Cargando…</p></div>
+            </article>
+
+            <article class="card table-card" style="margin-top:18px;">
+              <div class="card-head"><div><h2>Historial de envíos</h2><p>Últimos 30 mensajes masivos.</p></div></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Fecha</th><th>Para</th><th>Mensaje</th><th>Entregados</th><th>Estado</th></tr></thead>
+                  <tbody id="tablaDifusiones"></tbody>
+                </table>
               </div>
             </article>
           </section>
@@ -2751,6 +2819,18 @@
       </main>
     </div>
 </div>
+<div class="modal" id="modalChat">
+  <div class="modal-card" style="width:min(600px,100%);">
+    <div class="modal-head"><div><h3 id="chatTitulo">Soporte</h3><small id="chatSub" style="color:var(--muted);"></small></div><button class="link-btn" id="btnCerrarChat" aria-label="Cerrar">✕</button></div>
+    <div class="modal-body">
+      <div class="chat-hilo" id="chatHilo"></div>
+      <div class="chat-reply">
+        <textarea id="chatRespuesta" maxlength="2000" placeholder="Escribe tu respuesta — le llega por Telegram y la ve en su panel"></textarea>
+        <div class="modal-actions"><small id="chatMsg" style="margin-right:auto;color:var(--muted);align-self:center;"></small><button class="btn btn-primary btn-enviar" id="btnResponderChat"><svg viewBox="0 0 24 24" fill="none"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Responder</button></div>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast">Acción completada</div>
 
 <script>
@@ -2817,7 +2897,7 @@ function arrancar(){
 
 // --- Navegación --------------------------------------------------------------
 const CARGADORES = {
-  dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios,
+  dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios, messages: cargarMensajes,
   alerts: cargarAlertas, calls: cargarLlamadas, payments: cargarPagos,
   referrals: cargarReferidos, cycles: cargarCiclos, 'system-errors': cargarFallos
 };
@@ -2954,12 +3034,15 @@ function pintarUsuarios(){
     return `<tr><td>${s.email}</td>
       <td><span class="plan-pill ${s.plan === 'vip' ? 'plan-vip' : 'plan-free'}">${s.plan === 'vip' ? '★ VIP' : 'Gratis'}</span></td>
       <td>${s.municipio}, ${s.estado}</td><td>${canales || '—'}</td>
+      <td>${celdaSoporte(s)}</td>
       <td>${fecha(s.created_at)}</td>
       <td><span class="status-pill ${s.activo ? 'open' : 'error'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td>
       <td><button class="link-btn" style="color:#c0491f;" data-eliminar="${s.id}" data-correo="${s.email}">Dar de baja</button></td></tr>`;
-  }).join('') || '<tr><td colspan="7">Sin usuarios que coincidan.</td></tr>';
+  }).join('') || '<tr><td colspan="8">Sin usuarios que coincidan.</td></tr>';
 }
 $('tablaUsuarios').addEventListener('click', async (e) => {
+  const chat = e.target.closest('[data-chat]');
+  if (chat) { abrirChat(chat.dataset.chat); return; }
   const btn = e.target.closest('[data-eliminar]');
   if (!btn) return;
   const id = btn.dataset.eliminar;
@@ -2980,6 +3063,7 @@ async function cargarUsuarios() {
   const { suscriptores } = await api('suscriptores');
   SUSCRIPTORES_CACHE = suscriptores;
   pintarUsuarios();
+  pintarBadgeNav();
 }
 $('btnExportarArchivados').addEventListener('click', async () => {
   try {
@@ -3195,6 +3279,130 @@ $('btnGuardarPrecio').addEventListener('click', async () => {
     CONFIG_CACHE = config;
     notify('Precio y oferta guardados — se cobran y se muestran desde ya.');
   } catch (err) { notify('Error: ' + err.message); }
+});
+// --- Mensajes masivos y soporte VIP ---------------------------------------------
+// Todo lo que escriben los clientes se muestra escapado (nunca como HTML).
+function escHtml(t){ return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fechaHora(s){ return s ? new Date(s).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'; }
+function destinatariosDe(plan){
+  return SUSCRIPTORES_CACHE.filter(s => s.activo && s.plan === plan && s.telegram_chat_id && s.telegram_enabled !== false).length;
+}
+function celdaSoporte(s){
+  const r = s.soporte;
+  if (!r) return s.plan === 'vip' ? '<span class="muted">—</span>' : '';
+  return `<button class="soporte-badge ${r.sin_leer ? 'nuevo' : ''}" data-chat="${s.id}">💬 ${r.total}${r.sin_leer ? ` · ${r.sin_leer} nuevo${r.sin_leer > 1 ? 's' : ''}` : ''}</button>`;
+}
+function pintarBadgeNav(){
+  const n = SUSCRIPTORES_CACHE.reduce((a, s) => a + (s.soporte?.sin_leer || 0), 0);
+  $('navSoporteBadge').textContent = n;
+  $('navSoporteBadge').classList.toggle('oculto', !n);
+}
+function pintarBandeja(){
+  const conChat = SUSCRIPTORES_CACHE.filter(s => s.soporte)
+    .sort((a, b) => (b.soporte.sin_leer - a.soporte.sin_leer) || (new Date(b.soporte.ultimo) - new Date(a.soporte.ultimo)));
+  $('bandejaSoporte').innerHTML = conChat.map(s => `<div class="bandeja-item" data-chat="${s.id}">
+      <div><strong>${escHtml(s.nombre || s.email)}</strong><br><small class="muted">${escHtml(s.email)} · ${escHtml(s.municipio)}, ${escHtml(s.estado)} · último: ${fechaHora(s.soporte.ultimo)}</small></div>
+      ${celdaSoporte(s)}</div>`).join('') || '<p class="muted" style="padding:0 20px 16px;">Todavía no hay mensajes de soporte.</p>';
+}
+async function cargarDifusiones(){
+  try {
+    const { difusiones } = await api('difusiones');
+    $('tablaDifusiones').innerHTML = difusiones.map(d => `<tr><td>${fechaHora(d.created_at)}</td>
+      <td><span class="plan-pill ${d.segmento === 'vip' ? 'plan-vip' : 'plan-free'}">${d.segmento === 'vip' ? '★ VIP' : 'Gratis'}</span></td>
+      <td style="max-width:420px;white-space:pre-wrap;">${escHtml(d.texto.length > 160 ? d.texto.slice(0, 160) + '…' : d.texto)}</td>
+      <td>${d.enviados} / ${d.destinatarios}${d.fallidos ? ` <small style="color:#b42318;">(${d.fallidos} fallaron)</small>` : ''}</td>
+      <td><span class="status-pill ${d.estado === 'terminado' ? 'open' : d.estado === 'error' ? 'error' : 'goal'}">${d.estado === 'terminado' ? 'Terminado' : d.estado === 'error' ? 'Error' : 'Enviando…'}</span></td></tr>`).join('')
+      || '<tr><td colspan="5">Aún no has enviado mensajes masivos.</td></tr>';
+    return difusiones;
+  } catch (err) {
+    $('tablaDifusiones').innerHTML = `<tr><td colspan="5">No se pudo leer el historial (¿ya corriste sql/007?): ${escHtml(err.message)}</td></tr>`;
+    return [];
+  }
+}
+async function cargarMensajes(){
+  const { suscriptores } = await api('suscriptores');
+  SUSCRIPTORES_CACHE = suscriptores;
+  $('destVip').textContent = `${destinatariosDe('vip')} destinatarios con Telegram vinculado`;
+  $('destFree').textContent = `${destinatariosDe('free')} destinatarios con Telegram vinculado`;
+  pintarBandeja();
+  pintarBadgeNav();
+  await cargarDifusiones();
+}
+[['txtDifusionVip','cntVip'], ['txtDifusionFree','cntFree']].forEach(([t, c]) =>
+  $(t).addEventListener('input', () => { $(c).textContent = `${$(t).value.length} / 4000`; }));
+
+document.querySelectorAll('[data-difusion]').forEach(btn => btn.addEventListener('click', async () => {
+  const segmento = btn.dataset.difusion;
+  const caja = segmento === 'vip' ? $('txtDifusionVip') : $('txtDifusionFree');
+  const texto = caja.value.trim();
+  const n = destinatariosDe(segmento);
+  const nombre = segmento === 'vip' ? 'VIP' : 'Gratis';
+  if (!texto) { notify('Escribe el mensaje primero.'); return; }
+  if (!n) { notify(`No hay clientes ${nombre} con Telegram vinculado.`); return; }
+  if (!confirm(`¿Enviar este mensaje por Telegram a ${n} cliente(s) ${nombre}? No se puede deshacer.\n\n${texto.slice(0, 300)}`)) return;
+  btn.disabled = true;
+  try {
+    // Background Function: Netlify responde 202 al instante y el envío
+    // sigue en segundo plano; el avance se ve en el historial.
+    const resp = await fetch('/.netlify/functions/difusion-background', {
+      method: 'POST',
+      headers: { 'x-admin-password': PASS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ segmento, texto })
+    });
+    if (resp.status !== 202 && !resp.ok) throw new Error('HTTP ' + resp.status);
+    caja.value = ''; caja.dispatchEvent(new Event('input'));
+    notify(`Enviando a ${n} cliente(s) ${nombre}… el avance aparece en el historial.`);
+    // Refresca el historial unas veces mientras avanza.
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 2500));
+      const ds = await cargarDifusiones();
+      if (ds[0] && ds[0].estado !== 'enviando') break;
+    }
+  } catch (err) { notify('Error: ' + err.message); }
+  finally { btn.disabled = false; }
+}));
+
+let CHAT_ID = null;
+function pintarHilo(mensajes){
+  $('chatHilo').innerHTML = mensajes.map(m => `<div class="burbuja ${m.autor}">${escHtml(m.texto)}<small>${m.autor === 'admin' ? 'Tú' : 'Cliente'} · ${m.canal === 'telegram' ? 'Telegram' : 'Panel'} · ${fechaHora(m.created_at)}</small></div>`).join('')
+    || '<p class="muted">Sin mensajes todavía.</p>';
+  $('chatHilo').scrollTop = $('chatHilo').scrollHeight;
+}
+async function abrirChat(id){
+  CHAT_ID = id;
+  const s = SUSCRIPTORES_CACHE.find(x => String(x.id) === String(id)) || {};
+  $('chatTitulo').textContent = s.nombre || s.email || 'Soporte';
+  $('chatSub').textContent = `${s.email || ''} · ${s.municipio || ''}, ${s.estado || ''} · ${s.plan === 'vip' ? 'VIP' : 'Gratis'}${s.telegram_chat_id ? '' : ' · sin Telegram vinculado'}`;
+  $('chatMsg').textContent = '';
+  $('chatHilo').innerHTML = '<p class="muted">Cargando…</p>';
+  $('modalChat').classList.add('open');
+  try {
+    const { mensajes } = await api(`soporte-hilo&id=${encodeURIComponent(id)}`);
+    pintarHilo(mensajes);
+    if (s.soporte?.sin_leer) {
+      await api('soporte-leido', 'POST', { id });
+      s.soporte.sin_leer = 0;
+      pintarUsuarios(); pintarBandeja(); pintarBadgeNav();
+    }
+  } catch (err) { $('chatHilo').innerHTML = `<p class="muted">Error: ${escHtml(err.message)}</p>`; }
+}
+$('bandejaSoporte').addEventListener('click', e => { const el = e.target.closest('[data-chat]'); if (el) abrirChat(el.dataset.chat); });
+$('btnRefrescarSoporte').addEventListener('click', () => cargarMensajes().catch(err => notify('Error: ' + err.message)));
+$('btnCerrarChat').addEventListener('click', () => $('modalChat').classList.remove('open'));
+$('modalChat').addEventListener('click', e => { if (e.target === $('modalChat')) $('modalChat').classList.remove('open'); });
+$('btnResponderChat').addEventListener('click', async () => {
+  const texto = $('chatRespuesta').value.trim();
+  if (!texto || !CHAT_ID) return;
+  $('btnResponderChat').disabled = true;
+  try {
+    const r = await api('soporte-responder', 'POST', { id: CHAT_ID, texto });
+    $('chatRespuesta').value = '';
+    pintarHilo(r.mensajes);
+    $('chatMsg').textContent = r.aviso || 'Enviado por Telegram ✓';
+    const s = SUSCRIPTORES_CACHE.find(x => String(x.id) === String(CHAT_ID));
+    if (s) { s.soporte = { ...(s.soporte || { sin_leer: 0 }), total: r.mensajes.length, ultimo: new Date().toISOString() }; pintarUsuarios(); pintarBandeja(); }
+  } catch (err) { $('chatMsg').textContent = 'Error: ' + err.message; }
+  finally { $('btnResponderChat').disabled = false; }
 });
 </script>
   </body>

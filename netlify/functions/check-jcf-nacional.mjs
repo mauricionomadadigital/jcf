@@ -17,6 +17,7 @@
 
 import { getStore } from '@netlify/blobs';
 import { descargarCatalogo, estadoTexto, normalizar, enviarTelegram } from './lib/dtmlp.mjs';
+import { lineaSoporteVip } from './lib/soporte.mjs';
 import { enviarCorreo } from './lib/email.mjs';
 import { llamarTalkyria } from './lib/talkyria.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
@@ -236,7 +237,8 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
         : `ℹ️ Actualización de ${cambio.municipio}, ${estadoNombreReal}\n\nEstado actual: ${cambio.estadoNuevo}\n\nSi ya alcanzó la meta, probablemente el cupo se llenó. Seguimos monitoreando por si hay más cambios.`;
 
       if (s.telegram_enabled !== false && s.telegram_chat_id) {
-        const ok = await enviarTelegram(TELEGRAM_BOT_TOKEN, s.telegram_chat_id, textoTelegram);
+        // A VIP se le agrega el acceso a soporte directo.
+        const ok = await enviarTelegram(TELEGRAM_BOT_TOKEN, s.telegram_chat_id, textoTelegram + (plan === 'vip' ? lineaSoporteVip() : ''));
         if (ok) alertasEnviadas++;
       }
 
@@ -305,7 +307,7 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
       for (const s of destinatarios) {
         const ok = await enviarTelegram(
           TELEGRAM_BOT_TOKEN, s.telegram_chat_id,
-          `🔔🟢 Recordatorio (${r.count + 1}/${MAX_RECORDATORIOS}): ${municipioNombreReal} sigue ABIERTO\n\n📍 ${estadoNombreReal}\n\n👉 Si aún no te registras, entra a la plataforma ahora — puede cerrar en cualquier momento.`
+          `🔔🟢 Recordatorio (${r.count + 1}/${MAX_RECORDATORIOS}): ${municipioNombreReal} sigue ABIERTO\n\n📍 ${estadoNombreReal}\n\n👉 Si aún no te registras, entra a la plataforma ahora — puede cerrar en cualquier momento.` + lineaSoporteVip()
         );
         if (ok) alertasEnviadas++;
       }

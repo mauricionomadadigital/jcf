@@ -4,6 +4,7 @@
 
 import { suscriptorDesdeToken, tokenDesdeRequest, verifyPassword, hashPassword } from './lib/auth.mjs';
 import { normalizar, estadoTexto, descargarCatalogo } from './lib/dtmlp.mjs';
+import { guardarMensaje, hiloDe, avisarAdmin, MAX_MENSAJE_SOPORTE } from './lib/soporte.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -100,6 +101,20 @@ export default async (req) => {
         phone: phone || suscriptor.phone
       });
       return json({ ok: true, suscriptor: sinPassword(row) });
+    }
+
+    // --- Soporte (chat con el administrador) — exclusivo VIP ---------------
+    if (action === 'soporte') {
+      if (suscriptor.plan !== 'vip') return json({ error: 'El soporte directo es exclusivo del plan VIP.' }, 403);
+      if (req.method === 'POST') {
+        const { texto } = await req.json();
+        const limpio = (texto || '').trim();
+        if (!limpio) return json({ error: 'Escribe tu mensaje.' }, 400);
+        if (limpio.length > MAX_MENSAJE_SOPORTE) return json({ error: `Máximo ${MAX_MENSAJE_SOPORTE} caracteres.` }, 400);
+        await guardarMensaje({ suscriptorId: suscriptor.id, autor: 'cliente', canal: 'panel', texto: limpio });
+        await avisarAdmin(suscriptor, limpio, 'panel');
+      }
+      return json({ ok: true, mensajes: await hiloDe(suscriptor.id) });
     }
 
     if (req.method === 'POST' && action === 'password') {

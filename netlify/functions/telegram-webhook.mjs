@@ -4,9 +4,21 @@
 // un mensaje "/start <token>" — con eso vinculamos su chat_id real
 // a la fila de `suscriptores` que se creó en el webhook de pago.
 
+import { guardarMensaje, avisarAdmin } from './lib/soporte.mjs';
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-v2.netlify.app';
+
+async function buscarPorChat(chatId) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/suscriptores?telegram_chat_id=eq.${encodeURIComponent(String(chatId))}&activo=eq.true&select=*&order=created_at.desc&limit=1`,
+    { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` } }
+  );
+  const data = await res.json();
+  return Array.isArray(data) && data[0] ? data[0] : null;
+}
 
 async function enviarMensaje(chatId, texto) {
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -66,7 +78,22 @@ export default async (req) => {
     const match = texto.match(/^\/start\s+(\S+)/);
 
     if (!match) {
-      // Cualquier otro mensaje: recordatorio breve, sin exponer lógica interna.
+      // Texto libre de alguien ya vinculado: si es VIP, es un mensaje de
+      // soporte (le llega al admin en su panel); si es Gratis, se le
+      // explica que el soporte directo es parte de VIP.
+      if (!texto.startsWith('/')) {
+        const cuenta = await buscarPorChat(chatId);
+        if (cuenta && cuenta.plan === 'vip') {
+          await guardarMensaje({ suscriptorId: cuenta.id, autor: 'cliente', canal: 'telegram', texto });
+          await avisarAdmin(cuenta, texto, 'Telegram');
+          await enviarMensaje(chatId, '✅ Recibimos tu mensaje. Te respondemos por aquí mismo en cuanto podamos.');
+          return new Response('OK', { status: 200 });
+        }
+        if (cuenta) {
+          await enviarMensaje(chatId, `El soporte directo por este chat es exclusivo del plan VIP. Si quieres subir a VIP: ${SITE_URL}/checkout-vip.html`);
+          return new Response('OK', { status: 200 });
+        }
+      }
       if (texto === '/start') {
         await enviarMensaje(chatId, 'Para vincular tu monitoreo, abre el link que te llegó por correo al registrarte (revisa también spam), o el botón de Telegram en tu panel.');
       }
@@ -89,7 +116,8 @@ export default async (req) => {
     await vincularChatId(suscriptor.id, chatId);
     await enviarMensaje(
       chatId,
-      `✅ ¡Listo! Quedaste vinculado.\n\nEstamos monitoreando: ${suscriptor.municipio}, ${suscriptor.estado}\n\nTe avisaremos por aquí en cuanto abra.`
+      `✅ ¡Listo! Quedaste vinculado.\n\nEstamos monitoreando: ${suscriptor.municipio}, ${suscriptor.estado}\n\nTe avisaremos por aquí en cuanto abra.` +
+        (suscriptor.plan === 'vip' ? '\n\n💬 Como eres VIP, si tienes dudas o algo no funciona, escríbenos aquí mismo en este chat.' : '')
     );
 
     return new Response('OK', { status: 200 });

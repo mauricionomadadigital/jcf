@@ -3,6 +3,7 @@
 // protegidas con ADMIN_PASSWORD en el header x-admin-password.
 
 import { normalizar, estadoTexto, descargarCatalogo, enviarTelegram } from './lib/dtmlp.mjs';
+import { guardarMensaje, hiloDe, enviarTelegramTexto } from './lib/soporte.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -41,6 +42,22 @@ async function setConfig(cambios) {
 
 async function listarSuscriptores() {
   return sb('suscriptores?select=*&order=created_at.desc&limit=500');
+}
+
+// Mensajes de soporte por suscriptor (total y sin leer), para la columna
+// "Soporte" de la tabla de usuarios. Si la migración 007 aún no corre,
+// simplemente no hay datos.
+async function resumenSoporte() {
+  try {
+    const filas = await sb('mensajes_soporte?select=suscriptor_id,autor,leido,created_at&order=created_at.desc&limit=5000');
+    const porId = {};
+    for (const m of filas) {
+      const r = porId[m.suscriptor_id] || (porId[m.suscriptor_id] = { total: 0, sin_leer: 0, ultimo: m.created_at });
+      r.total++;
+      if (m.autor === 'cliente' && !m.leido) r.sin_leer++;
+    }
+    return porId;
+  } catch { return {}; }
 }
 
 function buscarEstadoReal(estadoIdPorNombre, detmun, estadoNombre, municipioNombre) {
@@ -246,7 +263,40 @@ export default async (req) => {
 
   try {
     if (req.method === 'GET' && action === 'config') return json({ ok: true, config: await getConfig() });
-    if (req.method === 'GET' && action === 'suscriptores') return json({ ok: true, suscriptores: await listarSuscriptores() });
+    if (req.method === 'GET' && action === 'suscriptores') {
+      const [suscriptores, soporte] = await Promise.all([listarSuscriptores(), resumenSoporte()]);
+      return json({ ok: true, suscriptores: suscriptores.map(s => ({ ...s, soporte: soporte[s.id] || null })) });
+    }
+    if (req.method === 'GET' && action === 'difusiones') {
+      return json({ ok: true, difusiones: await sb('difusiones?select=*&order=created_at.desc&limit=30') });
+    }
+    if (req.method === 'GET' && action === 'soporte-hilo') {
+      const id = url.searchParams.get('id');
+      if (!id) return json({ error: 'Falta el id.' }, 400);
+      return json({ ok: true, mensajes: await hiloDe(id, 300) });
+    }
+    if (req.method === 'POST' && action === 'soporte-leido') {
+      const { id } = await req.json();
+      await fetch(`${SUPABASE_URL}/rest/v1/mensajes_soporte?suscriptor_id=eq.${id}&autor=eq.cliente&leido=eq.false`, {
+        method: 'PATCH',
+        headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+        body: JSON.stringify({ leido: true })
+      });
+      return json({ ok: true });
+    }
+    if (req.method === 'POST' && action === 'soporte-responder') {
+      const { id, texto } = await req.json();
+      const limpio = (texto || '').trim();
+      if (!id || !limpio) return json({ error: 'Falta el mensaje.' }, 400);
+      const [s] = await sb(`suscriptores?id=eq.${id}&select=id,telegram_chat_id&limit=1`);
+      if (!s) return json({ error: 'Ese suscriptor ya no existe.' }, 404);
+      await guardarMensaje({ suscriptorId: id, autor: 'admin', canal: 'telegram', texto: limpio });
+      // La respuesta le llega por el bot; además queda visible en su panel.
+      const r = s.telegram_chat_id
+        ? await enviarTelegramTexto(s.telegram_chat_id, `💬 Respuesta de soporte Monitor JCF:\n\n${limpio}`)
+        : { ok: false, description: 'no tiene Telegram vinculado' };
+      return json({ ok: true, telegram: r.ok, aviso: r.ok ? null : `Guardado en su panel, pero no llegó por Telegram (${r.description}).`, mensajes: await hiloDe(id, 300) });
+    }
     if (req.method === 'GET' && action === 'stats') return json({ ok: true, stats: await calcularStats() });
     if (req.method === 'GET' && action === 'monitoreos') return json({ ok: true, monitoreos: await calcularMonitoreos() });
     if (req.method === 'GET' && action === 'pagos') return json({ ok: true, pagos: await calcularPagos() });
