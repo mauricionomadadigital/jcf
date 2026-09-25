@@ -4,6 +4,7 @@
 
 import { normalizar, estadoTexto, descargarCatalogo, enviarTelegram } from './lib/dtmlp.mjs';
 import { guardarMensaje, hiloDe, enviarTelegramTexto } from './lib/soporte.mjs';
+import { validarBase64Imagen, TOTAL_BANNERS, MAX_BYTES_BANNER } from './lib/banners.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -266,6 +267,35 @@ export default async (req) => {
     if (req.method === 'GET' && action === 'suscriptores') {
       const [suscriptores, soporte] = await Promise.all([listarSuscriptores(), resumenSoporte()]);
       return json({ ok: true, suscriptores: suscriptores.map(s => ({ ...s, soporte: soporte[s.id] || null })) });
+    }
+    // --- Banners de la página de registro -------------------------------------
+    if (req.method === 'GET' && action === 'banners') {
+      let filas = [];
+      try { filas = await sb('landing_banners?select=slot,data_uri,formato,bytes,updated_at&order=slot.asc'); }
+      catch (err) { return json({ error: 'No se pudo leer landing_banners (¿ya corriste sql/008?): ' + err.message }, 500); }
+      return json({ ok: true, total: TOTAL_BANNERS, max_bytes: MAX_BYTES_BANNER, banners: filas });
+    }
+    if (req.method === 'POST' && action === 'banner-guardar') {
+      const { slot, data } = await req.json();
+      const n = Number(slot);
+      if (!Number.isInteger(n) || n < 1 || n > TOTAL_BANNERS) return json({ error: 'Banner no válido.' }, 400);
+      let img;
+      try { img = validarBase64Imagen(data); } catch (err) { return json({ error: err.message }, 400); }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/landing_banners?on_conflict=slot`, {
+        method: 'POST',
+        headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify({ slot: n, data_uri: img.dataUri, formato: img.formato, bytes: img.bytes, updated_at: new Date().toISOString() })
+      });
+      if (!res.ok) return json({ error: await res.text() }, 500);
+      return json({ ok: true, slot: n, formato: img.formato, bytes: img.bytes });
+    }
+    if (req.method === 'POST' && action === 'banner-restaurar') {
+      const { slot } = await req.json();
+      const n = Number(slot);
+      if (!Number.isInteger(n) || n < 1 || n > TOTAL_BANNERS) return json({ error: 'Banner no válido.' }, 400);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/landing_banners?slot=eq.${n}`, { method: 'DELETE', headers: headersSupabase() });
+      if (!res.ok) return json({ error: await res.text() }, 500);
+      return json({ ok: true });
     }
     if (req.method === 'GET' && action === 'difusiones') {
       return json({ ok: true, difusiones: await sb('difusiones?select=*&order=created_at.desc&limit=30') });

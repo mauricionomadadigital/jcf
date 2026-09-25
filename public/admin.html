@@ -1589,6 +1589,20 @@
         gap: 9px;
         padding-top: 8px;
       }
+      /* --- Banners de la página de registro --- */
+      .banners-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      @media (max-width: 1000px) { .banners-grid { grid-template-columns: 1fr; } }
+      .banner-slot { display: grid; grid-template-columns: 110px 1fr; gap: 16px; padding: 18px; }
+      .banner-thumb { width: 110px; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 10px; background: #0a1a2e; border: 1px solid var(--line); }
+      .banner-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+      .banner-meta span { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 9px; background: #f1f5f9; color: #334155; }
+      .banner-meta span.ok { background: #e7f8f1; color: #178e5c; }
+      .banner-meta span.mal { background: #fdecec; color: #b42318; }
+      .banner-meta span.custom { background: #fff4e5; color: #9a4b00; }
+      .banner-slot textarea { width: 100%; height: 92px; resize: vertical; font: 11px/1.35 ui-monospace, Consolas, monospace; border: 1px solid var(--line); border-radius: 10px; padding: 8px; box-sizing: border-box; word-break: break-all; }
+      .banner-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+      .banner-acciones .btn { padding: 8px 12px; font-size: 12.5px; }
+      .banner-msg { font-size: 12px; margin-top: 6px; min-height: 15px; }
       /* --- Mensajes masivos y soporte --- */
       .msg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
       @media (max-width: 900px) { .msg-grid { grid-template-columns: 1fr; } }
@@ -2225,6 +2239,14 @@
           </button>
           <button
             class="nav-btn"
+            data-screen="banners"
+            data-title="Imágenes del registro"
+            data-subtitle="Los 6 banners de la página de registro, en base64"
+          >
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="2" stroke="currentColor" stroke-width="1.8"/><path d="m4 18 5-5 4 4 3-3 4 4" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Imágenes
+          </button>
+          <button
+            class="nav-btn"
             data-screen="messages"
             data-title="Mensajes y soporte"
             data-subtitle="Avisos masivos por Telegram y chat de soporte VIP"
@@ -2492,6 +2514,23 @@
                 <div class="msg" id="testMsg" style="font-size:12.5px;color:var(--muted);margin-top:9px;"></div>
               </div>
             </article>
+          </section>
+
+          <section class="screen" id="banners">
+            <div class="screen-heading">
+              <h2>Imágenes de la página de registro</h2>
+              <p>Pega el código base64 de una imagen nueva y dale Guardar: la página de registro la muestra en máximo 5 minutos, sin redeploy.</p>
+            </div>
+            <article class="card" style="margin-bottom:18px;">
+              <div style="padding:16px 20px;display:flex;flex-wrap:wrap;gap:18px;font-size:13px;color:#334155;">
+                <div><strong>Formato:</strong> WebP (recomendado), JPG o PNG</div>
+                <div><strong>Peso máximo:</strong> <span id="bannerMaxKb">300</span> KB por imagen</div>
+                <div><strong>Medida:</strong> 720 × 1280 px, vertical 9:16</div>
+                <div><strong>Código aceptado:</strong> <code>data:image/webp;base64,…</code> o solo el base64</div>
+                <div class="muted">¿Tienes el archivo y no el código? Usa <strong>Elegir archivo</strong>: lo convierte a base64 y lo comprime solo.</div>
+              </div>
+            </article>
+            <div class="banners-grid" id="bannersGrid"><p class="muted">Cargando…</p></div>
           </section>
 
           <section class="screen" id="messages">
@@ -2897,7 +2936,7 @@ function arrancar(){
 
 // --- Navegación --------------------------------------------------------------
 const CARGADORES = {
-  dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios, messages: cargarMensajes,
+  dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios, messages: cargarMensajes, banners: cargarBanners,
   alerts: cargarAlertas, calls: cargarLlamadas, payments: cargarPagos,
   referrals: cargarReferidos, cycles: cargarCiclos, 'system-errors': cargarFallos
 };
@@ -3280,6 +3319,141 @@ $('btnGuardarPrecio').addEventListener('click', async () => {
     notify('Precio y oferta guardados — se cobran y se muestran desde ya.');
   } catch (err) { notify('Error: ' + err.message); }
 });
+// --- Banners de la página de registro (base64) ----------------------------------
+const UBICACION_BANNER = {
+  1: 'Arriba del registro · 1.ª', 2: 'Arriba del registro · 2.ª',
+  3: 'Después del registro · 1.ª', 4: 'Después del registro · 2.ª',
+  5: 'Final de la página · 1.ª', 6: 'Final de la página · 2.ª'
+};
+let BANNER_MAX = 300 * 1024;
+// Formato real por los primeros bytes (igual que valida el servidor).
+function analizarBase64(texto){
+  let t = String(texto || '').trim();
+  const m = t.match(/^data:([^;,]+);base64,(.*)$/s);
+  if (m) t = m[2];
+  t = t.replace(/\s+/g, '');
+  if (!t) return { vacio: true };
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(t)) return { error: 'No es base64 válido' };
+  const bytes = Math.floor(t.length * 3 / 4) - (t.endsWith('==') ? 2 : t.endsWith('=') ? 1 : 0);
+  let cab = '';
+  try { cab = atob(t.slice(0, 24)); } catch { return { error: 'No es base64 válido' }; }
+  const formato = cab.slice(0, 4) === 'RIFF' && cab.slice(8, 12) === 'WEBP' ? 'webp'
+    : cab.charCodeAt(0) === 0xff && cab.charCodeAt(1) === 0xd8 ? 'jpeg'
+    : cab.slice(1, 4) === 'PNG' ? 'png' : null;
+  if (!formato) return { error: 'Formato no permitido (solo WebP, JPG o PNG)', bytes };
+  return { formato, bytes, dataUri: `data:image/${formato};base64,${t}` };
+}
+function kb(n){ return Math.round(n / 1024) + ' KB'; }
+function pintarMetaBanner(n, info, guardado){
+  const partes = [];
+  if (info.vacio) partes.push('<span class="mal">Sin código</span>');
+  else if (info.error) partes.push(`<span class="mal">${escHtml(info.error)}</span>`);
+  else {
+    partes.push(`<span>${info.formato.toUpperCase()}</span>`);
+    partes.push(`<span class="${info.bytes > BANNER_MAX ? 'mal' : 'ok'}">${kb(info.bytes)} / máx. ${kb(BANNER_MAX)}</span>`);
+  }
+  partes.push(guardado ? `<span class="custom">Personalizada · ${fechaHora(guardado.updated_at)}</span>` : '<span>Original</span>');
+  $(`bannerMeta${n}`).innerHTML = partes.join('');
+}
+async function blobADataUri(blob){
+  return new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = mal; r.readAsDataURL(blob); });
+}
+// Comprime en el navegador: 720 px de ancho, WebP, bajando calidad hasta caber.
+async function archivoABase64(archivo){
+  const bmp = await createImageBitmap(archivo);
+  const ancho = Math.min(720, bmp.width), alto = Math.round(bmp.height * ancho / bmp.width);
+  const c = document.createElement('canvas'); c.width = ancho; c.height = alto;
+  c.getContext('2d').drawImage(bmp, 0, 0, ancho, alto);
+  for (const q of [0.82, 0.74, 0.66, 0.58, 0.5, 0.42]) {
+    const blob = await new Promise(r => c.toBlob(r, 'image/webp', q));
+    if (blob && blob.size <= BANNER_MAX) return blobADataUri(blob);
+  }
+  throw new Error('No se pudo dejar la imagen por debajo del peso máximo.');
+}
+let BANNERS_GUARDADOS = {};
+async function cargarBanners(){
+  const r = await api('banners');
+  BANNER_MAX = r.max_bytes; $('bannerMaxKb').textContent = Math.round(BANNER_MAX / 1024);
+  BANNERS_GUARDADOS = Object.fromEntries(r.banners.map(b => [b.slot, b]));
+  $('bannersGrid').innerHTML = Array.from({ length: r.total }, (_, i) => i + 1).map(n => `
+    <article class="card banner-slot">
+      <img class="banner-thumb" id="bannerThumb${n}" alt="Banner ${n}" />
+      <div>
+        <strong>Banner ${n}</strong> <small class="muted">— ${UBICACION_BANNER[n]}</small>
+        <div class="banner-meta" id="bannerMeta${n}"></div>
+        <textarea id="bannerCode${n}" spellcheck="false" placeholder="Pega aquí el código base64 (data:image/webp;base64,…)"></textarea>
+        <div class="banner-acciones">
+          <button class="btn btn-primary" data-banner-guardar="${n}">Guardar</button>
+          <label class="btn btn-secondary" style="cursor:pointer;">Elegir archivo<input type="file" accept="image/*" data-banner-archivo="${n}" hidden /></label>
+          <button class="btn btn-outline" data-banner-copiar="${n}">Copiar código</button>
+          <button class="btn btn-outline" data-banner-restaurar="${n}" style="color:#c0491f;">Restaurar original</button>
+        </div>
+        <div class="banner-msg muted" id="bannerMsg${n}"></div>
+      </div>
+    </article>`).join('');
+  for (let n = 1; n <= r.total; n++) {
+    const g = BANNERS_GUARDADOS[n];
+    // Sin versión personalizada, el código es el de la imagen original.
+    const dataUri = g ? g.data_uri : await blobADataUri(await (await fetch(`/img/banner${n}.webp`)).blob()).catch(() => '');
+    $(`bannerCode${n}`).value = dataUri;
+    $(`bannerThumb${n}`).src = dataUri || `/img/banner${n}.webp`;
+    pintarMetaBanner(n, analizarBase64(dataUri), g);
+  }
+}
+$('bannersGrid').addEventListener('input', e => {
+  const n = e.target.id?.startsWith('bannerCode') ? e.target.id.replace('bannerCode', '') : null;
+  if (!n) return;
+  const info = analizarBase64(e.target.value);
+  if (info.dataUri) $(`bannerThumb${n}`).src = info.dataUri;
+  pintarMetaBanner(n, info, BANNERS_GUARDADOS[n]);
+  $(`bannerMsg${n}`).textContent = 'Sin guardar — la vista previa ya muestra el código pegado.';
+});
+$('bannersGrid').addEventListener('change', async e => {
+  const n = e.target.dataset?.bannerArchivo;
+  if (!n || !e.target.files[0]) return;
+  $(`bannerMsg${n}`).textContent = 'Convirtiendo y comprimiendo…';
+  try {
+    const dataUri = await archivoABase64(e.target.files[0]);
+    $(`bannerCode${n}`).value = dataUri;
+    $(`bannerCode${n}`).dispatchEvent(new Event('input', { bubbles: true }));
+  } catch (err) { $(`bannerMsg${n}`).textContent = 'Error: ' + err.message; }
+  e.target.value = '';
+});
+$('bannersGrid').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const n = b.dataset.bannerGuardar || b.dataset.bannerCopiar || b.dataset.bannerRestaurar;
+  if (!n) return;
+  const msg = $(`bannerMsg${n}`);
+  if (b.dataset.bannerCopiar) {
+    try { await navigator.clipboard.writeText($(`bannerCode${n}`).value); msg.textContent = 'Código copiado ✓'; }
+    catch { $(`bannerCode${n}`).select(); msg.textContent = 'Selecciónalo y cópialo con Ctrl+C.'; }
+    return;
+  }
+  if (b.dataset.bannerGuardar) {
+    const info = analizarBase64($(`bannerCode${n}`).value);
+    if (info.vacio || info.error) { msg.textContent = info.error || 'Pega el código primero.'; return; }
+    if (info.bytes > BANNER_MAX) { msg.textContent = `Pesa ${kb(info.bytes)}; el máximo es ${kb(BANNER_MAX)}. Usa "Elegir archivo" para comprimirla.`; return; }
+    b.disabled = true; msg.textContent = 'Guardando…';
+    try {
+      await api('banner-guardar', 'POST', { slot: Number(n), data: $(`bannerCode${n}`).value });
+      BANNERS_GUARDADOS[n] = { slot: Number(n), updated_at: new Date().toISOString() };
+      pintarMetaBanner(n, info, BANNERS_GUARDADOS[n]);
+      msg.textContent = 'Guardado ✓ La página de registro la mostrará en máximo 5 minutos.';
+      notify(`Banner ${n} actualizado`);
+    } catch (err) { msg.textContent = 'Error: ' + err.message; }
+    finally { b.disabled = false; }
+    return;
+  }
+  if (b.dataset.bannerRestaurar) {
+    if (!confirm(`¿Volver el banner ${n} a la imagen original?`)) return;
+    try {
+      await api('banner-restaurar', 'POST', { slot: Number(n) });
+      notify(`Banner ${n} restaurado`);
+      await cargarBanners();
+    } catch (err) { msg.textContent = 'Error: ' + err.message; }
+  }
+});
+
 // --- Mensajes masivos y soporte VIP ---------------------------------------------
 // Todo lo que escriben los clientes se muestra escapado (nunca como HTML).
 function escHtml(t){ return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
