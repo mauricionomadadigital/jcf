@@ -24,7 +24,9 @@ function headersSupabase(extra = {}) {
 function sinPassword(suscriptor) {
   if (!suscriptor) return suscriptor;
   const { password_hash, reset_token, ...resto } = suscriptor;
-  return resto;
+  // Las cuentas creadas con Google no tienen contraseña hasta que fijan
+  // una desde el panel — el panel lo usa para no pedir "la actual".
+  return { ...resto, tiene_password: !!password_hash };
 }
 
 async function marcarIntentoFallido(id, intentos) {

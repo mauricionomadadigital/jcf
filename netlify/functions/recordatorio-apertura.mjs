@@ -50,7 +50,7 @@ function textoTelegram({ dias, municipio, estado, esFree, bajaLink }) {
 🤳 También te van a pedir tomarte una selfie ese día — prepárate.`;
 
   const upsell = esFree
-    ? `\n\nActualmente tienes el plan Gratis. Con VIP ($100 MXN, 14 días) además de Telegram recibes correo y una llamada automática en cuanto abra tu municipio — más posibilidades de enterarte a tiempo. Súbete aquí: ${SITE_URL}/?plan=vip`
+    ? `\n\nActualmente tienes el plan Gratis. Con VIP ($100 MXN, 14 días) además de Telegram recibes correo y una llamada automática en cuanto abra tu municipio — más posibilidades de enterarte a tiempo. Súbete aquí: ${SITE_URL}/checkout-vip.html`
     : '';
 
   return `${base}${upsell}\n\nSi no quieres recibir más recordatorios como este, date de baja aquí: ${bajaLink}`;
@@ -71,7 +71,7 @@ function htmlCorreo({ dias, municipio, estado, esFree, bajaLink }) {
         <li>Ten a la mano tu <strong>INE</strong>, tu <strong>CURP</strong> y un <strong>comprobante de domicilio original</strong>.</li>
         <li>Te van a pedir tomarte una <strong>selfie</strong> el día de la apertura.</li>
       </ul>
-      ${esFree ? `<p style="background:#101c30;border-radius:10px;padding:14px;border:1px solid rgba(52,211,153,0.2);">Actualmente tienes el plan <strong>Gratis</strong>. Con <strong>VIP</strong> ($100 MXN, 14 días) además de Telegram recibes correo y una <strong>llamada automática</strong> en cuanto abra tu municipio. <a href="${SITE_URL}/?plan=vip" style="color:#34d399;">Súbete a VIP</a>.</p>` : ''}
+      ${esFree ? `<p style="background:#101c30;border-radius:10px;padding:14px;border:1px solid rgba(52,211,153,0.2);">Actualmente tienes el plan <strong>Gratis</strong>. Con <strong>VIP</strong> ($100 MXN, 14 días) además de Telegram recibes correo y una <strong>llamada automática</strong> en cuanto abra tu municipio. <a href="${SITE_URL}/checkout-vip.html" style="color:#34d399;">Súbete a VIP</a>.</p>` : ''}
       <p style="color:#9aa7bd;font-size:12px;margin-top:20px;">Si no quieres recibir más recordatorios como este, <a href="${bajaLink}" style="color:#9aa7bd;">date de baja aquí</a>.</p>
     </div>
   `;

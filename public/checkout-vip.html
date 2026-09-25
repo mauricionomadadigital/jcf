@@ -2289,7 +2289,14 @@
 
 <script>
 const $ = id => document.getElementById(id);
-let TOKEN = localStorage.getItem('jcf_token') || '';
+// El registro/login con Google con "quiero VIP" llega aquí directo con
+// el token en el fragmento (#token=...).
+const TOKEN_HASH = new URLSearchParams(location.hash.replace(/^#/, '')).get('token');
+if (TOKEN_HASH) {
+  localStorage.setItem('jcf_token', TOKEN_HASH);
+  history.replaceState(null, '', location.pathname + location.search);
+}
+let TOKEN = TOKEN_HASH || localStorage.getItem('jcf_token') || '';
 let CUENTA = null;
 
 async function apiAuth(action, method='GET', body=null) {
@@ -2327,10 +2334,10 @@ if (resultadoPago) {
   $('resultadoPago').classList.remove('oculto');
 }
 
-// Sin sesión y sin venir de un pago, no hay nada que subir a VIP
-// directamente aquí — se manda a la página de registro con el plan VIP
-// ya preseleccionado, para no pedirle dos veces los mismos datos.
-if (!TOKEN && !resultadoPago) { location.href = '/?plan=vip'; }
+// Sin sesión y sin venir de un pago, no hay cuenta que subir a VIP —
+// se manda a entrar (o, desde ahí, a registrarse Gratis); en cuanto
+// entra regresa aquí solo a pagar, sin volver a pedir datos.
+if (!TOKEN && !resultadoPago) { location.href = '/entrar.html?siguiente=vip'; }
 
 async function cargarCheckout(){
   if (resultadoPago) return;

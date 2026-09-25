@@ -18,7 +18,7 @@ function headersSupabase(extra = {}) {
 
 function sinPassword(s) {
   const { password_hash, reset_token, ...resto } = s;
-  return resto;
+  return { ...resto, tiene_password: !!password_hash };
 }
 
 function json(obj, status = 200) {
@@ -104,7 +104,9 @@ export default async (req) => {
 
     if (req.method === 'POST' && action === 'password') {
       const { currentPassword, newPassword } = await req.json();
-      if (!verifyPassword(currentPassword || '', suscriptor.password_hash)) {
+      // Cuenta creada con Google sin contraseña: la primera se fija sin
+      // pedir "la actual" (ya está autenticada por su sesión).
+      if (suscriptor.password_hash && !verifyPassword(currentPassword || '', suscriptor.password_hash)) {
         return json({ error: 'La contraseña actual no es correcta.' }, 400);
       }
       if (!newPassword || newPassword.length < 8) {

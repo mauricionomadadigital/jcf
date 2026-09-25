@@ -2474,13 +2474,13 @@
             <h3>Seguridad y contraseña</h3>
             <p>Cambia la contraseña utilizada para entrar con correo electrónico.</p>
             <form id="passwordForm">
-              <div class="field"><label for="currentPassword">Contraseña actual</label><input id="currentPassword" type="password" autocomplete="current-password" required /></div>
+              <div class="field" id="currentPasswordField"><label for="currentPassword">Contraseña actual</label><input id="currentPassword" type="password" autocomplete="current-password" required /></div>
               <div class="field"><label for="newPassword">Nueva contraseña</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required /></div>
               <div class="field"><label for="confirmPassword">Confirmar nueva contraseña</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required /></div>
               <button class="btn btn-primary" type="submit" style="width: 100%; justify-content: center">Actualizar contraseña</button>
             </form>
             <div class="msg" id="passwordMsg" style="font-size:12px;margin-top:8px;"></div>
-            <div class="notice">Debe tener al menos 8 caracteres. Si entraste con Google, la contraseña se administra desde tu cuenta de Google.</div>
+            <div class="notice" id="passwordNotice">Debe tener al menos 8 caracteres.</div>
           </article>
 
           <article class="portal-card section-anchor" style="margin-top: 16px;border-color:#f6c4a8;">
@@ -2621,6 +2621,7 @@ function renderPlan(){
   $('perfilNombre').value = CUENTA.nombre || '';
   $('perfilTelefono').value = CUENTA.phone || '';
   $('perfilPrefijo').value = CUENTA.telefono_prefijo || '+52';
+  renderSeguridad();
   const esVip = CUENTA.plan === 'vip';
   $('badgePlan').textContent = esVip ? '★ Plan VIP' : 'Plan Gratis';
   $('badgePlan').className = 'plan-pill ' + (esVip ? 'plan-vip' : 'plan-free');
@@ -2825,6 +2826,16 @@ $('copySite').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(url); $('copySite').textContent = 'Copiado ✓'; setTimeout(()=>$('copySite').textContent='Copiar enlace',1800); }
   catch { alert(url); }
 });
+// Cuentas creadas con Google no tienen contraseña todavía: pueden fijar
+// una (para entrar también con correo) sin que se les pida "la actual".
+function renderSeguridad(){
+  const tiene = CUENTA.tiene_password !== false;
+  $('currentPasswordField').classList.toggle('oculto', !tiene);
+  $('currentPassword').required = tiene;
+  $('passwordNotice').textContent = tiene
+    ? 'Debe tener al menos 8 caracteres.'
+    : 'Creaste tu cuenta con Google, así que aún no tienes contraseña. Si quieres, fija una aquí para poder entrar también con tu correo (mínimo 8 caracteres).';
+}
 $('passwordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = $('passwordMsg'); msg.textContent = 'Guardando…';
@@ -2836,6 +2847,8 @@ $('passwordForm').addEventListener('submit', async (e) => {
     await apiCliente('password', 'POST', { currentPassword, newPassword });
     msg.textContent = 'Contraseña actualizada.';
     e.target.reset();
+    CUENTA.tiene_password = true;
+    renderSeguridad();
   } catch (err) { msg.textContent = 'Error: ' + err.message; }
 });
 

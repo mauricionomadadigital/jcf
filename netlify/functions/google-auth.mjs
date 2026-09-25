@@ -4,11 +4,15 @@
 // Google SÍ está públicamente documentado y es estable, así que esto
 // está escrito contra su especificación real, no adivinado.
 //
-// Solo sirve para ENTRAR a una cuenta que ya existe (dada de alta por
-// correo+contraseña o por un pago VIP) — un correo de Google que no
-// coincide con ningún suscriptor te manda de regreso a la portada para
-// registrarte primero. Igual que el mockup, que solo mostraba el botón
-// de Google en la pantalla de login, no en el checkout inicial.
+// Sirve para ENTRAR y para REGISTRARSE:
+//  - Desde /entrar.html (sin datos de registro): entra a la cuenta que
+//    ya existe con ese correo. Si no existe, manda a la portada a
+//    registrarse.
+//  - Desde / (registro, con nombre/estado/municipio): si el correo no
+//    tiene cuenta activa, la crea en plan Gratis (lib/alta-free.mjs) y
+//    entra directo al panel. Si ya tenía cuenta activa, simplemente entra.
+// Con siguiente=vip, al terminar manda a /checkout-vip.html en vez del
+// panel (solo pago, sin volver a pedir datos).
 //
 // Requiere dos variables de entorno nuevas:
 //   GOOGLE_CLIENT_ID
@@ -16,6 +20,8 @@
 // Ver README-v2.md para cómo obtenerlas y qué Redirect URI registrar.
 
 import { crearSesion, buscarSuscriptorPorEmail } from './lib/auth.mjs';
+import { altaFree } from './lib/alta-free.mjs';
+import { registroEstaAbierto } from './lib/config.mjs';
 import { randomBytes } from 'node:crypto';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -27,6 +33,21 @@ function leerCookie(req, nombre) {
   const cookies = req.headers.get('cookie') || '';
   const match = cookies.match(new RegExp(`(?:^|;\\s*)${nombre}=([^;]+)`));
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+// Datos del formulario de registro, guardados en una cookie corta entre
+// la ida a Google y el regreso (base64url de un JSON).
+function leerRegistro(req) {
+  const raw = leerCookie(req, 'g_reg');
+  if (!raw) return null;
+  try { return JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')); }
+  catch { return null; }
+}
+
+function redirigir(location, ...cookies) {
+  const headers = new Headers({ Location: location });
+  for (const c of cookies) headers.append('Set-Cookie', c);
+  return new Response(null, { status: 302, headers });
 }
 
 export default async (req) => {
@@ -48,15 +69,27 @@ export default async (req) => {
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('prompt', 'select_account');
 
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: authUrl.toString(),
-        // Cookie de un solo uso, corta, solo para validar que el
-        // regreso (callback) sea el mismo navegador que inició esto.
-        'Set-Cookie': `g_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`
-      }
-    });
+    // Viene del formulario de registro: guardamos sus datos para crear
+    // la cuenta Gratis al regresar de Google.
+    const p = url.searchParams;
+    const registro = (p.get('estado') && p.get('municipio')) ? {
+      nombre: (p.get('nombre') || '').trim().slice(0, 120),
+      estado: p.get('estado').trim().slice(0, 120),
+      municipio: p.get('municipio').trim().slice(0, 160),
+      ref: (p.get('ref') || '').trim().toUpperCase().slice(0, 20) || null,
+      siguiente: p.get('siguiente') === 'vip' ? 'vip' : null
+    } : (p.get('siguiente') === 'vip' ? { siguiente: 'vip' } : null);
+    const regCookie = registro
+      ? `g_reg=${Buffer.from(JSON.stringify(registro)).toString('base64url')}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`
+      : 'g_reg=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/';
+
+    // Cookie de un solo uso, corta, solo para validar que el regreso
+    // (callback) sea el mismo navegador que inició esto.
+    return redirigir(
+      authUrl.toString(),
+      `g_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
+      regCookie
+    );
   }
 
   // --- Paso 2: Google regresa aquí con el código ----------------------------
@@ -64,13 +97,13 @@ export default async (req) => {
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     const stateCookie = leerCookie(req, 'g_state');
-    const limpiarCookie = 'g_state=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/';
+    const registro = leerRegistro(req);
+    const limpiarState = 'g_state=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/';
+    const limpiarReg = 'g_reg=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/';
+    const ir = (location) => redirigir(location, limpiarState, limpiarReg);
 
     if (!code || !state || state !== stateCookie) {
-      return new Response(null, {
-        status: 302,
-        headers: { Location: '/entrar.html?error=google_state', 'Set-Cookie': limpiarCookie }
-      });
+      return ir('/entrar.html?error=google_state');
     }
 
     try {
@@ -98,40 +131,49 @@ export default async (req) => {
       const perfil = await perfilRes.json();
 
       if (!perfil.email || perfil.email_verified !== true) {
-        return new Response(null, {
-          status: 302,
-          headers: { Location: '/entrar.html?error=google_sin_verificar', 'Set-Cookie': limpiarCookie }
+        return ir('/entrar.html?error=google_sin_verificar');
+      }
+
+      const email = perfil.email.toLowerCase();
+      let suscriptor = await buscarSuscriptorPorEmail(email);
+      const vieneDeRegistro = !!(registro && registro.estado && registro.municipio);
+
+      if (vieneDeRegistro && !(suscriptor && suscriptor.activo)) {
+        // Registro con Google: sin cuenta activa con ese correo, se crea
+        // (o se reactiva la archivada) en plan Gratis, igual que con
+        // correo+contraseña pero sin contraseña.
+        if (!(await registroEstaAbierto())) {
+          return ir('/?error=registro_cerrado');
+        }
+        suscriptor = await altaFree({
+          email,
+          estado: registro.estado,
+          municipio: registro.municipio,
+          password: null,
+          referredBy: registro.ref || null,
+          nombre: registro.nombre || perfil.name || '',
+          telefono: '',
+          telefonoPrefijo: '+52'
         });
       }
 
-      const suscriptor = await buscarSuscriptorPorEmail(perfil.email.toLowerCase());
       if (!suscriptor) {
-        // No existe cuenta con ese correo — a registrarse primero.
-        return new Response(null, {
-          status: 302,
-          headers: {
-            Location: `/?google_email=${encodeURIComponent(perfil.email)}&error=sin_cuenta`,
-            'Set-Cookie': limpiarCookie
-          }
-        });
+        // Entró desde "Entrar" con un Google sin cuenta — a registrarse.
+        return ir(`/?google_email=${encodeURIComponent(perfil.email)}&error=sin_cuenta`);
       }
 
       const token = await crearSesion(suscriptor.id);
       // El token va en el fragmento (#), no en la query — así no queda
       // en el historial del navegador ni se manda a ningún servidor.
-      // Va directo a /panel.html: ya sabemos que la cuenta existe, no
-      // hace falta pasar por la portada de registro ni por el login.
-      return new Response(null, {
-        status: 302,
-        headers: { Location: `/panel.html#token=${token}`, 'Set-Cookie': limpiarCookie }
-      });
+      // Si pidió VIP, directo al checkout (solo pago); si no, al panel.
+      const destino = (registro?.siguiente === 'vip' && suscriptor.plan !== 'vip')
+        ? '/checkout-vip.html'
+        : '/panel.html';
+      return ir(`${destino}#token=${token}`);
 
     } catch (err) {
       console.error('Error en callback de Google:', err.message);
-      return new Response(null, {
-        status: 302,
-        headers: { Location: '/entrar.html?error=google_falla', 'Set-Cookie': limpiarCookie }
-      });
+      return ir('/entrar.html?error=google_falla');
     }
   }
 
