@@ -5,10 +5,10 @@
 import { registrarFallo } from './fallos.mjs';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-comercial.netlify.app';
-// Nota temporal (igual que en el proyecto original): mientras se compra
-// un dominio propio, se manda desde la dirección ya verificada en Resend.
-const FROM = 'Monitor JCF <noreply@bookbuilderai.online>';
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
+// Dominio propio del proyecto, verificado en Resend (SPF, DKIM y DMARC
+// en Netlify DNS). Remitente con nombre de marca = menos spam.
+const FROM = 'Monitor JCF <avisos@monitorjcf.online>';
 // Las respuestas llegan a un buzón real — un "noreply" sin reply-to
 // resta confianza ante los filtros de spam.
 const REPLY_TO = 'maurixcasas@gmail.com';

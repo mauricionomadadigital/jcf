@@ -10,7 +10,7 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 // Opcional: chat de Telegram del administrador, para avisarle al
 // instante cuando un VIP escribe (debe haberle dado /start al bot).
 const ADMIN_TELEGRAM_CHAT_ID = process.env.ADMIN_TELEGRAM_CHAT_ID;
-const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-v2.netlify.app';
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
 
 export const MAX_MENSAJE_SOPORTE = 2000;
 

@@ -18,7 +18,7 @@ import { normalizarPrecio, formatoMxn } from './lib/precio.mjs';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-comercial.netlify.app';
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
 
 function headersSupabase(extra = {}) {
   return {

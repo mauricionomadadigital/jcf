@@ -7,7 +7,7 @@ import { registroEstaAbierto } from './lib/config.mjs';
 import { precioVip } from './lib/precio.mjs';
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const SITE_URL = process.env.SITE_URL || 'https://CAMBIA-ESTO.netlify.app';
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
 
 export default async (req) => {
   if (req.method !== 'POST') {

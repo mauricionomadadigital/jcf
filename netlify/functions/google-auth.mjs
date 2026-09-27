@@ -26,8 +26,15 @@ import { randomBytes } from 'node:crypto';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-comercial.netlify.app';
-const REDIRECT_URI = `${SITE_URL}/.netlify/functions/google-auth?action=callback`;
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
+// Origen cuyo redirect_uri está registrado en Google Cloud Console. El
+// ida y vuelta con Google corre en ese origen (ahí viven las cookies
+// g_state/g_reg) y al terminar se regresa al sitio principal (SITE_URL)
+// con el token en el #. Así cambiar de dominio no rompe el login: para
+// usar el dominio propio también en este paso, agrega su redirect_uri en
+// Google Cloud y pon GOOGLE_OAUTH_ORIGIN=https://monitorjcf.online.
+const OAUTH_ORIGIN = process.env.GOOGLE_OAUTH_ORIGIN || 'https://monitor-jcf-v2.netlify.app';
+const REDIRECT_URI = `${OAUTH_ORIGIN}/.netlify/functions/google-auth?action=callback`;
 
 function leerCookie(req, nombre) {
   const cookies = req.headers.get('cookie') || '';
@@ -60,6 +67,11 @@ export default async (req) => {
 
   // --- Paso 1: mandar al usuario a la pantalla de Google -------------------
   if (action === 'iniciar') {
+    // Si llegó por otro dominio, primero se pasa al origen autorizado en
+    // Google (con los mismos datos del registro en la URL).
+    if (url.host !== new URL(OAUTH_ORIGIN).host) {
+      return new Response(null, { status: 302, headers: { Location: `${OAUTH_ORIGIN}${url.pathname}${url.search}` } });
+    }
     const state = randomBytes(16).toString('hex');
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
@@ -100,7 +112,9 @@ export default async (req) => {
     const registro = leerRegistro(req);
     const limpiarState = 'g_state=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/';
     const limpiarReg = 'g_reg=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/';
-    const ir = (location) => redirigir(location, limpiarState, limpiarReg);
+    // Siempre de regreso al sitio principal, aunque el callback corra en
+    // el origen de OAuth.
+    const ir = (location) => redirigir(`${SITE_URL}${location}`, limpiarState, limpiarReg);
 
     if (!code || !state || state !== stateCookie) {
       return ir('/entrar.html?error=google_state');

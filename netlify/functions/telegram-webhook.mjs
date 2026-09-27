@@ -9,7 +9,7 @@ import { guardarMensaje, avisarAdmin } from './lib/soporte.mjs';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const SITE_URL = process.env.SITE_URL || 'https://monitor-jcf-v2.netlify.app';
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
 
 async function buscarPorChat(chatId) {
   const res = await fetch(
