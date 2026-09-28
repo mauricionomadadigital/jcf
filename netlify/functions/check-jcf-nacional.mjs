@@ -98,6 +98,7 @@ async function cerrarPeriodoSiVencido(config, store) {
   }
 
   const purgados = await purgarInactivosDe3Periodos();
+  const cupones = await asignarCuponesSiguientePeriodo(config);
 
   const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true`, {
     method: 'PATCH',
@@ -109,7 +110,30 @@ async function cerrarPeriodoSiVencido(config, store) {
 
   await store.set('ultimo_cierre_procesado', config.periodo_fin);
 
-  return { cerrado: true, archivados: archivados.length, purgados };
+  return { cerrado: true, archivados: archivados.length, purgados, cupones };
+}
+
+// Cupón de descuento para el SIGUIENTE periodo (cuando la plataforma vuelva
+// a abrir): solo para quien pasó por VIP en el periodo que cierra. Primer
+// VIP (ciclo 1) = 50 %; ya había sido VIP antes (ciclo 2+) = 70 %. Quien
+// nunca fue VIP no recibe nada. Se consume al pagar (webhook.mjs lo pone
+// en 0) y se aplica aunque la cuenta esté en Gratis (create-preference).
+async function asignarCuponesSiguientePeriodo(config) {
+  const desde = config.periodo_inicio
+    ? `&vip_started_at=gte.${encodeURIComponent(config.periodo_inicio)}`
+    : '&vip_started_at=not.is.null';
+  const asignar = async (filtroCiclo, porcentaje) => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true${desde}&${filtroCiclo}`, {
+      method: 'PATCH',
+      headers: { ...headersSupabase(), 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      body: JSON.stringify({ discount_percent: porcentaje })
+    });
+    if (!res.ok) throw new Error('Error asignando cupones: ' + (await res.text()));
+    return (await res.json()).length;
+  };
+  const de70 = await asignar('cycle_number=gte.2', 70);
+  const de50 = await asignar('or=(cycle_number.lt.2,cycle_number.is.null)', 50);
+  return { de50, de70 };
 }
 
 // --- Degradación individual de VIP a los 14 días --------------------------

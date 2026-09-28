@@ -111,7 +111,8 @@ export const CONSTRUCTORES = {
   },
 
   vencimiento_vip(f, s, { precioTxt }) {
-    const v = { nombre: s.nombre || '', municipio: s.municipio, estado: s.estado, precio: precioTxt, link_vip: LINK_VIP };
+    // Mismo porcentaje que se asignará al cerrar el periodo.
+    const v = { nombre: s.nombre || '', municipio: s.municipio, estado: s.estado, precio: precioTxt, link_vip: LINK_VIP, descuento: (s.cycle_number || 1) >= 2 ? '70%' : '50%' };
     const texto = f.texto('vencimiento_vip', 'texto', v);
     return {
       telegram: texto,

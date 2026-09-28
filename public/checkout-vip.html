@@ -2378,10 +2378,15 @@ async function cargarCheckout(){
 
   let frecVip = 10, cfg = {};
   try { const r = await fetch('/.netlify/functions/config-publica'); cfg = await r.json(); frecVip = cfg.vip_frecuencia_min || 10; } catch {}
-  const precio = cfg.vip_precio || 100;
+  // Cupón de VIP anterior (50/70 %): se cobra así en create-preference.
+  const cupon = Math.min(Math.max(Number(CUENTA.discount_percent) || 0, 0), 90);
+  const base = cfg.vip_precio || 100;
+  const precio = cupon ? Math.round(base * (1 - cupon / 100) * 100) / 100 : base;
   $('vipPrecioActual').textContent = `$${precio} MXN`;
-  if (cfg.vip_precio_regular) { $('vipPrecioRegular').textContent = `$${cfg.vip_precio_regular}`; $('vipPrecioRegular').classList.remove('oculto'); }
-  if (cfg.vip_oferta_texto) { $('vipOferta').textContent = '🔥 ' + cfg.vip_oferta_texto; $('vipOferta').classList.remove('oculto'); }
+  const tachado = cupon ? base : cfg.vip_precio_regular;
+  if (tachado) { $('vipPrecioRegular').textContent = `$${tachado}`; $('vipPrecioRegular').classList.remove('oculto'); }
+  if (cupon) { $('vipOferta').textContent = `🎁 Tu cupón por haber sido VIP: ${cupon}% de descuento, ya aplicado.`; $('vipOferta').classList.remove('oculto'); }
+  if (cfg.vip_oferta_texto && !cupon) { $('vipOferta').textContent = '🔥 ' + cfg.vip_oferta_texto; $('vipOferta').classList.remove('oculto'); }
   if (cfg.vip_escasez_texto) { $('vipEscasez').textContent = '⚠️ ' + cfg.vip_escasez_texto; $('vipEscasez').classList.remove('oculto'); }
 
   $('vipCheckoutLugar').textContent = `${CUENTA.municipio}, ${CUENTA.estado}`;

@@ -24,6 +24,7 @@ const V = {
   link_panel: 'Link al panel del cliente',
   link_soporte: 'Link al chat de soporte del panel',
   estado_nuevo: 'Nuevo estado del municipio',
+  descuento: 'Cupón del próximo periodo: "50%" o "70%"',
   n: 'Número de recordatorio',
   total: 'Total de recordatorios'
 };
@@ -34,7 +35,7 @@ export const EJEMPLO = {
   link_vip: 'https://monitorjcf.online/checkout-vip.html',
   link_panel: 'https://monitorjcf.online/panel.html',
   link_soporte: 'https://monitorjcf.online/panel.html#soporte',
-  estado_nuevo: 'Meta alcanzada', n: '2', total: '4'
+  estado_nuevo: 'Meta alcanzada', n: '2', total: '4', descuento: '50%'
 };
 
 // etapa: registro | monitoreo | apertura | vip | soporte
@@ -142,9 +143,9 @@ export const ESTACIONES = [
     titulo: 'Vencimiento VIP',
     cuando: 'Pasan 14 días desde el pago: la cuenta vuelve a Gratis (sin llamada, revisión menos frecuente).',
     quien: 'El cliente cuyo VIP venció', canales: ['telegram', 'correo'], apagable: true,
-    variables: ['nombre', 'municipio', 'estado', 'precio', 'link_vip'],
+    variables: ['nombre', 'municipio', 'estado', 'descuento', 'precio', 'link_vip'],
     campos: [
-      { clave: 'texto', etiqueta: 'Mensaje (Telegram y cuerpo del correo)', tipo: 'telegram', defecto: '⌛ Tu plan VIP terminó\n\nTus 14 días de VIP para {municipio}, {estado} ya concluyeron. Te seguimos avisando gratis por Telegram, pero sin llamada automática y con revisión menos frecuente.\n\n¿Quieres seguir con VIP? Renuévalo por {precio}: {link_vip}' },
+      { clave: 'texto', etiqueta: 'Mensaje (Telegram y cuerpo del correo)', tipo: 'telegram', defecto: '⌛ Tu plan VIP terminó\n\nTus 14 días de VIP para {municipio}, {estado} ya concluyeron. Te seguimos avisando gratis por Telegram, pero sin llamada automática y con revisión menos frecuente.\n\n🎁 Por haber sido VIP, cuando la plataforma vuelva a abrir tendrás {descuento} de descuento para activarlo de nuevo.\n\n¿Lo quieres antes? Renuévalo hoy por {precio}: {link_vip}' },
       { clave: 'asunto', etiqueta: 'Asunto del correo', tipo: 'asunto', defecto: 'Tu plan VIP terminó — renuévalo cuando quieras' }
     ]
   },

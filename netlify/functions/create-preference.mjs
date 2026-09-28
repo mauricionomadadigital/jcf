@@ -84,7 +84,9 @@ export default async (req) => {
   // anterior), este es el único lugar donde de verdad se calcula lo que
   // se cobra — antes se guardaba el descuento pero nunca se aplicaba.
   const cuentaExistente = cuentaLogueada || await buscarSuscriptorPorEmail(email);
-  const descuento = cuentaExistente?.plan === 'vip' ? (cuentaExistente.discount_percent || 0) : 0;
+  // El cupón (50/70 %) solo existe si ya pasó por VIP (se asigna al cerrar
+  // el periodo, check-jcf-nacional.mjs) y vale aunque hoy esté en Gratis.
+  const descuento = Math.min(Math.max(Number(cuentaExistente?.discount_percent) || 0, 0), 90);
   // Precio vigente fijado por el administrador en el panel.
   const { vip_precio } = await precioVip();
   const precioFinal = Math.round(vip_precio * (1 - descuento / 100) * 100) / 100;
