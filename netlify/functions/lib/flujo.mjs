@@ -102,16 +102,20 @@ export const ESTACIONES = [
   },
   {
     clave: 'recordatorio_vip', num: 6, etapa: 'apertura', icono: '🔁',
-    titulo: 'Recordatorios reforzados',
-    cuando: 'El municipio sigue Abierto después del primer aviso.',
-    quien: 'Solo VIP de ese municipio', canales: ['telegram'], apagable: true,
+    titulo: 'Recordatorios reforzados VIP',
+    cuando: 'Después del aviso de apertura y mientras el municipio siga Abierto: Telegram, correo y llamada intercalados. La llamada se repite solo si ninguna anterior fue contestada (contestar detiene solo las llamadas).',
+    quien: 'Solo VIP de ese municipio', canales: ['telegram', 'correo', 'llamada'], apagable: true,
     variables: ['n', 'total', 'municipio', 'estado'],
     campos: [
-      { clave: 'texto', etiqueta: 'Mensaje de Telegram', tipo: 'telegram', defecto: '🔔🟢 Recordatorio ({n}/{total}): {municipio} sigue ABIERTO\n\n📍 {estado}\n\n👉 Si aún no te registras, entra a la plataforma ahora — puede cerrar en cualquier momento.' }
+      { clave: 'texto', etiqueta: 'Mensaje de Telegram', tipo: 'telegram', defecto: '🔔🟢 Recordatorio ({n}/{total}): {municipio} sigue ABIERTO\n\n📍 {estado}\n\n👉 Si aún no te registras, entra a la plataforma ahora — puede cerrar en cualquier momento.' },
+      { clave: 'asunto', etiqueta: 'Asunto del correo', tipo: 'asunto', defecto: '{municipio} sigue ABIERTO — regístrate ya' },
+      { clave: 'correo', etiqueta: 'Mensaje del correo', tipo: 'correo', defecto: 'Tu municipio sigue abierto en la plataforma de Jóvenes Construyendo el Futuro. Si aún no te registras, entra ahora: puede cerrar en cualquier momento.' }
     ],
     params: [
-      { clave: 'maximo', etiqueta: 'Recordatorios', unidad: 'en total', min: 1, max: 8, defecto: 4 },
-      { clave: 'espaciado_min', etiqueta: 'Uno cada', unidad: 'minutos', min: 5, max: 60, defecto: 15 },
+      { clave: 'telegram_cada_min', etiqueta: 'Telegram cada', unidad: 'minutos', min: 5, max: 60, defecto: 5 },
+      { clave: 'correo_cada_min', etiqueta: 'Correo cada', unidad: 'minutos (0 = sin correos)', min: 0, max: 60, defecto: 10 },
+      { clave: 'llamada_cada_min', etiqueta: 'Reintentar llamada cada', unidad: 'minutos', min: 5, max: 60, defecto: 15 },
+      { clave: 'llamadas_max', etiqueta: 'Llamadas máximo', unidad: 'por cliente (con la 1ª)', min: 1, max: 5, defecto: 3 },
       { clave: 'ventana_min', etiqueta: 'Durante', unidad: 'minutos', min: 15, max: 240, defecto: 60 }
     ]
   },

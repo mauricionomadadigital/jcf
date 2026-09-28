@@ -95,7 +95,14 @@ export const CONSTRUCTORES = {
   },
 
   recordatorio_vip(f, s, { n, total, municipio, estado }) {
-    return { telegram: f.texto('recordatorio_vip', 'texto', { n, total, municipio: municipio || s.municipio, estado: estado || s.estado }) + lineaSoporte(f, s) };
+    const v = { n, total, municipio: municipio || s.municipio, estado: estado || s.estado };
+    return {
+      telegram: f.texto('recordatorio_vip', 'texto', v) + lineaSoporte(f, s),
+      correo: { asunto: f.texto('recordatorio_vip', 'asunto', v), html: cajaCorreo(`
+        <h2 style="color:#34d399;">¡${v.municipio} sigue abierto!</h2>
+        <p>${textoAHtml(f.texto('recordatorio_vip', 'correo', v))}</p>
+        <p style="text-align:center;margin:20px 0;"><a href="https://jovenesconstruyendoelfuturo.stps.gob.mx/" style="background:#34d399;color:#06281c;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Ir a la plataforma oficial</a></p>`) }
+    };
   },
 
   cambio_estado(f, s, { municipio, estado, estadoNuevo }) {

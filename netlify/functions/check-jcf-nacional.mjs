@@ -186,6 +186,99 @@ async function registrarLlamadaSiNueva({ suscriptorId, email, municipio, estado,
   return res.ok;
 }
 
+// --- Llamadas VIP ---------------------------------------------------------
+// Solo números de México (+52) — es lo único probado con Talkyria. Cada
+// intento usa su propio evento (externalId de Talkyria): 1ª "…|apertura",
+// reintentos "…|apertura|2", "…|apertura|3". Nunca llama si el cliente
+// apagó la llamada o no tiene teléfono.
+function puedeLlamar(s) {
+  return !!(s.call_enabled && s.phone && (s.telefono_prefijo || '+52') === '+52');
+}
+async function llamarVip(s, { clave, municipio, estado, intento }) {
+  const evento = `${s.id}|${clave}|apertura${intento > 1 ? '|' + intento : ''}`;
+  const resultado = await llamarTalkyria({
+    telefono: `+52${s.phone}`, nombre: s.email.split('@')[0],
+    municipio, estado, externalId: evento
+  });
+  await registrarLlamadaSiNueva({
+    suscriptorId: s.id, email: s.email, municipio, estado,
+    evento, resultado: resultado.ok ? 'pendiente' : 'error'
+  });
+  return resultado.ok;
+}
+// ¿Alguna llamada de esta apertura fue contestada? Contestó = cualquier
+// resultado que no sea no contestó, buzón, error o aún pendiente (si
+// Talkyria no ha confirmado, no suponemos que le llegó).
+const RESULTADOS_SIN_CONTESTAR = new Set(['no_contesto', 'buzon', 'error', 'pendiente']);
+async function yaContesto(s, clave) {
+  const patron = encodeURIComponent(`${s.id}|${clave}|apertura*`);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/llamadas?suscriptor_id=eq.${s.id}&evento=like.${patron}&select=resultado`, { headers: headersSupabase() });
+  if (!res.ok) return false;
+  const filas = await res.json();
+  return filas.some(f => !RESULTADOS_SIN_CONTESTAR.has(f.resultado));
+}
+
+// --- Recordatorios reforzados VIP (estación 6 del flujo) ---------------------
+// Corre en CADA tick de 5 min, sin importar la frecuencia de revisión VIP.
+// Por cliente y por municipio abierto: Telegram cada N min, correo cada M
+// min y reintento de llamada cada K min mientras ninguna haya sido
+// contestada (máx. L llamadas contando la del minuto 0). Contestar detiene
+// solo las llamadas. Todo se corta si el municipio deja de estar Abierto
+// o se cumple la ventana.
+async function procesarRefuerzosVip(store) {
+  const refuerzos = (await store.get('refuerzos_vip', { type: 'json' })) || {};
+  const claves = Object.keys(refuerzos);
+  if (!claves.length) return { secuencias: 0 };
+  const flujo = await cargarFlujo();
+  const snapshot = (await store.get('snapshot_vip', { type: 'json' })) || {};
+  const ahora = Date.now();
+  const MIN = 60 * 1000;
+  const tgCada = flujo.param('recordatorio_vip', 'telegram_cada_min') * MIN;
+  const correoCada = flujo.param('recordatorio_vip', 'correo_cada_min') * MIN;
+  const llamadaCada = flujo.param('recordatorio_vip', 'llamada_cada_min') * MIN;
+  const llamadasMax = flujo.param('recordatorio_vip', 'llamadas_max');
+  const ventana = flujo.param('recordatorio_vip', 'ventana_min') * MIN;
+  const totalTg = Math.floor(ventana / tgCada);
+  const activa = flujo.activo('recordatorio_vip');
+  const vips = activa ? await leerSuscriptoresActivosDePlan('vip') : [];
+  const res = { secuencias: 0, telegram: 0, correos: 0, llamadas: 0 };
+
+  for (const clave of claves) {
+    const r = refuerzos[clave];
+    // Secuencias del formato anterior (sin "usuarios") o ya vencidas/cerradas: fuera.
+    if (!r.usuarios || snapshot[clave] !== 'Abierto' || ahora - r.primera > ventana) { delete refuerzos[clave]; continue; }
+    if (!activa) continue; // apagada en Admin > Flujo: se pausa sin borrar
+    res.secuencias++;
+    const transcurrido = ahora - r.primera;
+    const destinatarios = vips.filter(s => normalizar(s.estado) + '|' + normalizar(s.municipio) === clave);
+    for (const s of destinatarios) {
+      const u = r.usuarios[s.id] || (r.usuarios[s.id] = { tg: 0, correo: 0, llamadas: 0 });
+      const datos = { n: u.tg + 1, total: totalTg, municipio: r.municipio, estado: r.estado };
+      // Telegram: uno por tick como máximo, aunque se hayan perdido ticks.
+      if (transcurrido >= (u.tg + 1) * tgCada && u.tg < totalTg) {
+        const e = await enviarEstacion('recordatorio_vip', s, CONSTRUCTORES.recordatorio_vip(flujo, s, datos), { soloCanal: 'telegram' });
+        u.tg++; if (e.telegram) res.telegram++;
+      }
+      if (correoCada > 0 && transcurrido >= (u.correo + 1) * correoCada) {
+        const e = await enviarEstacion('recordatorio_vip', s, CONSTRUCTORES.recordatorio_vip(flujo, s, datos), { soloCanal: 'correo' });
+        u.correo++; if (e.correo) res.correos++;
+      }
+      if (u.llamadas < llamadasMax && transcurrido >= u.llamadas * llamadaCada && puedeLlamar(s)) {
+        if (await yaContesto(s, clave)) {
+          u.llamadas = llamadasMax; // contestó: ya no más llamadas (Telegram y correo siguen)
+        } else {
+          u.llamadas++;
+          await llamarVip(s, { clave, municipio: r.municipio, estado: r.estado, intento: u.llamadas });
+          res.llamadas++;
+        }
+      }
+    }
+  }
+  await volcarEnvios();
+  await store.setJSON('refuerzos_vip', refuerzos);
+  return res;
+}
+
 // Revisa un plan (free o vip) contra SU PROPIO snapshot — así cada uno
 // compara contra lo último que él mismo sabía, sin importar cada cuánto
 // corre el otro plan. `catalogo` se descarga una sola vez por tick y se
@@ -237,9 +330,6 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
   // Estaciones 5, 6 y 7 del flujo (Admin > Flujo): textos, encendido y
   // cantidades de los recordatorios VIP, editables sin deploy.
   const flujo = await cargarFlujo();
-  const MAX_RECORDATORIOS = flujo.param('recordatorio_vip', 'maximo');
-  const VENTANA_MS = flujo.param('recordatorio_vip', 'ventana_min') * 60 * 1000;
-  const ESPACIADO_MS = flujo.param('recordatorio_vip', 'espaciado_min') * 60 * 1000;
   const refuerzos = plan === 'vip' ? ((await store.get(claveRefuerzos, { type: 'json' })) || {}) : {};
 
   let alertasEnviadas = 0;
@@ -259,6 +349,7 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
 
     const esApertura = cambio.estadoNuevo === 'Abierto';
     const datos = { municipio: cambio.municipio, estado: estadoNombreReal, estadoNuevo: cambio.estadoNuevo };
+    const llamadasPorCliente = {};
     for (const s of destinatarios) {
       // Apertura: Telegram + correo, nunca se apaga. Cambio de estado (p. ej.
       // Meta alcanzada): solo Telegram, y se puede apagar en Admin > Flujo.
@@ -270,60 +361,31 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
         if (r.telegram) alertasEnviadas++;
       }
 
-      // Llamada: exclusiva VIP, y por ahora solo para números de México
-      // (+52) — es lo único que se probó con Talkyria en producción. El
-      // panel ya bloquea activar llamadas con otro prefijo, pero se
-      // valida también aquí por si acaso.
-      const prefijo = s.telefono_prefijo || '+52';
-      if (plan === 'vip' && cambio.estadoNuevo === 'Abierto' && s.call_enabled && s.phone && prefijo === '+52') {
+      // Llamada 1 (minuto 0): exclusiva VIP. Los reintentos los hace
+      // procesarRefuerzosVip si no contesta.
+      if (plan === 'vip' && esApertura && puedeLlamar(s)) {
         llamadasIntentadas++;
-        const evento = `${s.id}|${cambio.clave}|apertura`;
-        const resultado = await llamarTalkyria({
-          telefono: `${prefijo}${s.phone}`, nombre: s.email.split('@')[0],
-          municipio: cambio.municipio, estado: estadoNombreReal, externalId: evento
-        });
-        await registrarLlamadaSiNueva({
-          suscriptorId: s.id, email: s.email, municipio: cambio.municipio, estado: estadoNombreReal,
-          evento, resultado: resultado.ok ? 'pendiente' : 'error'
-        });
+        await llamarVip(s, { clave: cambio.clave, municipio: cambio.municipio, estado: estadoNombreReal, intento: 1 });
+        llamadasPorCliente[s.id] = 1;
       }
     }
 
-    // Recordatorios reforzados: solo VIP, porque su cadencia de minutos
-    // encaja con espaciarlos cada ~15 min — en Free no tiene sentido con
-    // una revisión de 1-2 horas.
-    if (plan === 'vip' && flujo.activo('recordatorio_vip')) {
-      if (cambio.estadoNuevo === 'Abierto') {
-        refuerzos[cambio.clave] = { primera: ahora, ultimo: ahora, count: 1 };
+    // Secuencia de recordatorios reforzados VIP, por cliente (la avanza
+    // procesarRefuerzosVip en cada tick de 5 min). Si el municipio deja de
+    // estar Abierto, la secuencia se corta.
+    if (plan === 'vip') {
+      if (esApertura) {
+        refuerzos[cambio.clave] = {
+          primera: ahora, municipio: cambio.municipio, estado: estadoNombreReal,
+          usuarios: Object.fromEntries(destinatarios.map(s => [s.id, { tg: 0, correo: 0, llamadas: llamadasPorCliente[s.id] || 0 }]))
+        };
       } else {
         delete refuerzos[cambio.clave];
       }
     }
   }
 
-  if (plan === 'vip' && flujo.activo('recordatorio_vip')) {
-    for (const [clave, texto] of Object.entries(snapshotNuevo)) {
-      if (texto !== 'Abierto') continue;
-      const r = refuerzos[clave];
-      if (!r) continue;
-      if (ahora - r.primera > VENTANA_MS) continue;
-      if (r.count >= MAX_RECORDATORIOS) continue;
-      if (ahora - r.ultimo < ESPACIADO_MS) continue;
-
-      const destinatarios = suscriptores.filter(
-        s => normalizar(s.estado) + '|' + normalizar(s.municipio) === clave && s.telegram_enabled !== false && s.telegram_chat_id
-      );
-      if (destinatarios.length === 0) continue;
-
-      const estadoNombreReal = destinatarios[0].estado;
-      const municipioNombreReal = destinatarios[0].municipio;
-
-      for (const s of destinatarios) {
-        const env = await enviarEstacion('recordatorio_vip', s, CONSTRUCTORES.recordatorio_vip(flujo, s, { n: r.count + 1, total: MAX_RECORDATORIOS, municipio: municipioNombreReal, estado: estadoNombreReal }));
-        if (env.telegram) alertasEnviadas++;
-      }
-      refuerzos[clave] = { ...r, ultimo: ahora, count: r.count + 1 };
-    }
+  if (plan === 'vip') {
     await store.setJSON(claveRefuerzos, refuerzos);
   }
 
@@ -373,6 +435,9 @@ async function ejecutarRevisionNacional() {
     }
   }
 
+  // Recordatorios reforzados VIP: en cada tick de 5 min.
+  const refuerzosVip = await procesarRefuerzosVip(store);
+
   const frecVip = config.vip_frecuencia_min || DEFAULT_VIP_MIN;
   const frecFree = config.free_frecuencia_min || DEFAULT_FREE_MIN;
 
@@ -382,7 +447,7 @@ async function ejecutarRevisionNacional() {
   ]);
 
   if (!vipLeToca && !freeLeToca) {
-    return { ok: true, activo: true, motivo: 'A ningún plan le tocaba revisar todavía en este tick.', vipDegradados };
+    return { ok: true, activo: true, motivo: 'A ningún plan le tocaba revisar todavía en este tick.', vipDegradados, refuerzosVip };
   }
 
   // El catálogo del gobierno se descarga una sola vez por tick (y solo si
@@ -403,7 +468,7 @@ async function ejecutarRevisionNacional() {
     ? await revisarPlan({ plan: 'free', store, catalogo, registrarHistorial: !historialYaRegistradoEsteTick })
     : { reviso: false };
 
-  return { ok: true, activo: true, vipDegradados, vip, free };
+  return { ok: true, activo: true, vipDegradados, refuerzosVip, vip, free };
 }
 
 export default async () => {
