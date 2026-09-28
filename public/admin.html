@@ -1589,6 +1589,85 @@
         gap: 9px;
         padding-top: 8px;
       }
+      /* ===== Admin > Flujo del cliente ===== */
+      .fl-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+      .fl-leyenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+      .fl-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+      .fl-punto { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+      .fl-punto.on { background: var(--green); box-shadow: 0 0 0 3px rgba(29,173,114,.15); }
+      .fl-punto.off { background: #b8c2cf; }
+      .fl-punto.mod { background: var(--amber); }
+      .fl-punto.prox { background: var(--purple); }
+
+      .fl-mapa { background: linear-gradient(160deg, #0b1d34 0%, #102844 60%, #0d3a4a 130%); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); overflow-x: auto; }
+      .fl-carril { display: grid; grid-template-columns: repeat(4, minmax(190px, 1fr)); gap: 30px; min-width: 860px; position: relative; }
+      .fl-etapa { position: relative; }
+      .fl-etapa + .fl-etapa::before { content: ''; position: absolute; left: -24px; top: 50%; width: 18px; height: 2px; background: rgba(125,211,252,.55); }
+      .fl-etapa + .fl-etapa::after { content: ''; position: absolute; left: -10px; top: calc(50% - 5px); border: 6px solid transparent; border-left-color: rgba(125,211,252,.8); }
+      .fl-etapa-t { color: #7dd3fc; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+      .fl-etapa-t small { color: rgba(255,255,255,.45); font-weight: 600; letter-spacing: 0; text-transform: none; }
+      .fl-nodos { display: flex; flex-direction: column; gap: 10px; }
+      .fl-nodo { position: relative; text-align: left; width: 100%; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #eaf2fb; border-radius: 14px; padding: 11px 12px 10px 44px; cursor: pointer; transition: transform .15s, border-color .15s, background .15s; font: inherit; }
+      .fl-nodo:hover { transform: translateY(-2px); border-color: rgba(125,211,252,.55); background: rgba(255,255,255,.1); }
+      .fl-nodo.sel { border-color: #22d3ee; background: rgba(34,211,238,.14); box-shadow: 0 0 0 3px rgba(34,211,238,.18); }
+      .fl-nodo.apagada { opacity: .55; }
+      .fl-nodo .fl-num { position: absolute; left: 11px; top: 11px; width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; font-size: 12px; font-weight: 900; background: rgba(125,211,252,.18); color: #7dd3fc; }
+      .fl-nodo strong { display: block; font-size: 13px; line-height: 1.25; }
+      .fl-nodo .fl-meta { display: flex; align-items: center; gap: 7px; margin-top: 6px; font-size: 11.5px; color: rgba(234,242,251,.7); }
+      .fl-nodo .fl-punto { margin-left: auto; }
+      .fl-ramas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; min-width: 860px; }
+      .fl-rama { border: 1px dashed rgba(125,211,252,.35); border-radius: 16px; padding: 14px; }
+      .fl-rama .fl-nodos { flex-direction: row; flex-wrap: wrap; }
+      .fl-rama .fl-nodo { width: auto; flex: 1 1 200px; }
+
+      .fl-detalle { margin-top: 18px; }
+      .fl-cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+      .fl-cab .fl-icono { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: linear-gradient(145deg, #e8f3ff, #e6fbf6); }
+      .fl-cab h2 { margin: 0; font-size: 19px; }
+      .fl-cab small { color: var(--muted); }
+      .fl-cab .fl-switch { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: var(--ink); }
+      .fl-siempre { font-size: 12px; font-weight: 700; color: #178e5c; background: #e7f8f1; border-radius: 999px; padding: 5px 11px; }
+      .fl-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+      @media (max-width: 900px) { .fl-info { grid-template-columns: 1fr; } }
+      .fl-info div { background: var(--bg); border-radius: 12px; padding: 11px 13px; }
+      .fl-info b { display: block; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+      .fl-info p { margin: 0; font-size: 13.5px; color: var(--ink); line-height: 1.4; }
+      .fl-canal { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 9px; margin: 0 5px 5px 0; }
+      .fl-canal.telegram { background: #e5f4fc; color: #0f76a8; }
+      .fl-canal.correo { background: #eef1ff; color: #3d4fd6; }
+      .fl-canal.llamada { background: #e7f8f1; color: #178e5c; }
+      .fl-params { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); align-items: center; }
+      .fl-param { background: #fff8eb; border: 1px solid #ffe1a8; color: #8a5a00; border-radius: 12px; padding: 8px 12px; font-size: 13px; }
+      .fl-param strong { font-size: 16px; }
+      .fl-campos { padding: 6px 20px 8px; }
+      .fl-campo { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; padding: 16px 0; border-bottom: 1px dashed var(--line); }
+      .fl-campo:last-child { border-bottom: 0; }
+      @media (max-width: 1000px) { .fl-campo { grid-template-columns: 1fr; } }
+      .fl-campo label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 7px; }
+      .fl-badge { font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 2px 8px; background: #fff4e5; color: #9a4b00; }
+      .fl-campo textarea, .fl-campo input { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; font: 13.5px/1.5 inherit; font-family: inherit; color: var(--ink); background: #fff; resize: vertical; }
+      .fl-campo textarea { min-height: 118px; }
+      .fl-campo textarea:focus, .fl-campo input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(35,103,245,.12); }
+      .fl-cuenta { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; }
+      .fl-vista b { display: block; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+      .fl-tg { background: #dfe9f1 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='3' cy='3' r='1.5' fill='%23c9d8e4'/%3E%3C/svg%3E"); border-radius: 14px; padding: 14px; }
+      .fl-burbuja { background: #fff; border-radius: 14px 14px 14px 4px; padding: 10px 12px 18px; max-width: 94%; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,.08); color: #111; }
+      .fl-burbuja::after { content: '9:00 ✓✓'; position: absolute; right: 9px; bottom: 4px; font-size: 10px; color: #6fb37e; }
+      .fl-burbuja a, .fl-mail a { color: #1d7fc4; }
+      .fl-mail { background: #0a1220; color: #eef2f9; border-radius: 14px; padding: 16px; font-size: 13px; line-height: 1.5; }
+      .fl-mail .fl-asunto { background: #fff; color: #111; border-radius: 10px; padding: 8px 11px; font-size: 12.5px; margin-bottom: 10px; }
+      .fl-var { color: #b42318; background: #fdecec; border-radius: 4px; padding: 0 3px; }
+      .fl-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 20px 14px; }
+      .fl-vars span { font-size: 12px; color: var(--muted); margin-right: 4px; }
+      .fl-vars button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-family: ui-monospace, Consolas, monospace; cursor: pointer; color: #29445f; }
+      .fl-vars button:hover { border-color: var(--blue); color: var(--blue); }
+      .fl-pie { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line); background: rgba(255,255,255,.96); backdrop-filter: blur(6px); border-radius: 0 0 var(--radius) var(--radius); }
+      .fl-pie .fl-estado { font-size: 12.5px; color: var(--muted); margin-right: auto; }
+      .fl-pie .btn { padding: 8px 13px; font-size: 13px; min-height: 0; height: auto; }
+      .fl-pie .fl-estado.sucio { color: #9a4b00; font-weight: 700; }
+      .fl-pie input { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; width: 200px; }
+      .fl-prox { padding: 34px 20px; text-align: center; color: var(--muted); }
+      .fl-prox strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; }
       /* --- Banners de la página de registro --- */
       .banners-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
       @media (max-width: 1000px) { .banners-grid { grid-template-columns: 1fr; } }
@@ -2212,6 +2291,14 @@
           </button>
           <button
             class="nav-btn"
+            data-screen="flow"
+            data-title="Flujo del cliente"
+            data-subtitle="Mapa de mensajes automáticos, editable sin deploy"
+          >
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="6" r="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="19" cy="6" r="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 6h9M6.3 8.2l4.4 7.6M17.7 8.2l-4.4 7.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Flujo
+          </button>
+          <button
+            class="nav-btn"
             data-screen="monitors"
             data-title="Monitoreos"
             data-subtitle="Estados y municipios en seguimiento"
@@ -2514,6 +2601,24 @@
                 <div class="msg" id="testMsg" style="font-size:12.5px;color:var(--muted);margin-top:9px;"></div>
               </div>
             </article>
+          </section>
+
+          <section class="screen" id="flow">
+            <div class="fl-top">
+              <div class="screen-heading" style="margin:0;">
+                <h2>Flujo del cliente</h2>
+                <p>Todo lo que el sistema le manda a un cliente, en orden. Elige una estación para ver cuándo se dispara y editar su mensaje — sin deploy.</p>
+                <div class="fl-leyenda">
+                  <span><i class="fl-punto on"></i>Encendida</span>
+                  <span><i class="fl-punto off"></i>Apagada</span>
+                  <span><i class="fl-punto mod"></i>Personalizada (distinta a fábrica)</span>
+                  <span><i class="fl-punto prox"></i>Próximamente</span>
+                </div>
+              </div>
+              <button class="btn btn-outline" id="flRestaurarTodo" style="color:#c0491f;">↺ Restaurar TODO de fábrica</button>
+            </div>
+            <div class="fl-mapa" id="flMapa"><p style="color:#9fc1d6;">Cargando flujo…</p></div>
+            <article class="card fl-detalle" id="flDetalle"></article>
           </section>
 
           <section class="screen" id="banners">
@@ -2936,7 +3041,7 @@ function arrancar(){
 
 // --- Navegación --------------------------------------------------------------
 const CARGADORES = {
-  dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios, messages: cargarMensajes, banners: cargarBanners,
+  dashboard: cargarResumen, monitors: cargarMonitoreos, users: cargarUsuarios, messages: cargarMensajes, banners: cargarBanners, flow: cargarFlujo,
   alerts: cargarAlertas, calls: cargarLlamadas, payments: cargarPagos,
   referrals: cargarReferidos, cycles: cargarCiclos, 'system-errors': cargarFallos
 };
@@ -3319,6 +3424,195 @@ $('btnGuardarPrecio').addEventListener('click', async () => {
     notify('Precio y oferta guardados — se cobran y se muestran desde ya.');
   } catch (err) { notify('Error: ' + err.message); }
 });
+// --- Flujo del cliente (mapa + estaciones editables) ------------------------------
+// Los valores de fábrica viven en netlify/functions/lib/flujo.mjs; aquí solo
+// se muestran y se editan. Todo texto se pinta escapado.
+let FL = null;          // respuesta de api('flujo')
+let FL_SEL = null;      // clave de la estación elegida
+let FL_BORRADOR = null; // { activo, textos } de la estación elegida, sin guardar
+let FL_ULTIMO_CAMPO = null;
+const FL_ETAPAS = [
+  { id: 'registro', t: 'Registro', sub: 'alta y Telegram' },
+  { id: 'monitoreo', t: 'Monitoreo', sub: 'mientras sigue cerrado' },
+  { id: 'apertura', t: 'Apertura', sub: 'cuando abre el municipio' },
+  { id: 'vip', t: 'VIP', sub: 'pago y vigencia' }
+];
+const FL_CANAL = { telegram: '✈ Telegram', correo: '✉ Correo', llamada: '☎ Llamada' };
+function flRender(t, vars){ return String(t ?? '').replace(/\{(\w+)\}/g, (m, k) => vars[k] !== undefined ? vars[k] : m); }
+// Vista previa: escapa, marca en rojo las variables que ESTA estación no
+// tiene al enviar (saldrían tal cual) y vuelve clicables los links.
+function flPreviewHtml(t){
+  const e = flEstacion(FL_SEL);
+  const disponibles = new Set(e ? e.variables : []);
+  let html = escHtml(String(t ?? '')).replace(/\{(\w+)\}/g, (m, k) => disponibles.has(k) && FL.ejemplo[k] !== undefined ? escHtml(FL.ejemplo[k]) : `<span class="fl-var" title="Esta estación no tiene {${k}}: el cliente lo vería tal cual">${m}</span>`);
+  return html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+function flEstacion(clave){ return FL.estaciones.find(e => e.clave === clave); }
+function flPersonalizada(e){ return e.campos.some(c => c.personalizado) || e.params.some(p => p.personalizado) || (e.apagable && !e.activo); }
+function flPunto(e){
+  if (e.proximamente) return 'prox';
+  if (!e.activo) return 'off';
+  return flPersonalizada(e) ? 'mod' : 'on';
+}
+function flNodo(e){
+  const canales = e.canales.map(c => FL_CANAL[c].split(' ')[0]).join(' ');
+  return `<button class="fl-nodo ${FL_SEL === e.clave ? 'sel' : ''} ${!e.activo ? 'apagada' : ''}" data-fl="${e.clave}">
+    <span class="fl-num">${e.num}</span><strong>${escHtml(e.icono)} ${escHtml(e.titulo)}</strong>
+    <span class="fl-meta">${canales}${e.proximamente ? ' · Fase 3' : ''}<i class="fl-punto ${flPunto(e)}"></i></span></button>`;
+}
+function flPintarMapa(){
+  const carril = FL_ETAPAS.map(et => `<div class="fl-etapa">
+      <p class="fl-etapa-t">${et.t} <small>${et.sub}</small></p>
+      <div class="fl-nodos">${FL.estaciones.filter(e => e.etapa === et.id).map(flNodo).join('')}</div></div>`).join('');
+  const soporte = FL.estaciones.filter(e => e.etapa === 'soporte');
+  $('flMapa').innerHTML = `<div class="fl-carril">${carril}</div>
+    <div class="fl-ramas"><div class="fl-rama" style="grid-column:1/-1;"><p class="fl-etapa-t">En cualquier momento <small>soporte, bot y cuenta</small></p>
+      <div class="fl-nodos">${soporte.map(flNodo).join('')}</div></div></div>`;
+}
+function flSucio(){
+  const e = flEstacion(FL_SEL);
+  if (!e || !FL_BORRADOR) return false;
+  if (e.apagable && FL_BORRADOR.activo !== e.activo) return true;
+  return e.campos.some(c => FL_BORRADOR.textos[c.clave] !== c.valor);
+}
+function flActualizarPie(){
+  const s = flSucio();
+  const el = $('flEstadoPie'); if (!el) return;
+  const e = flEstacion(FL_SEL);
+  el.className = 'fl-estado' + (s ? ' sucio' : '');
+  el.textContent = s ? '● Cambios sin guardar' : (e.actualizado ? `Guardado · ${fechaHora(e.actualizado)}` : 'Valores de fábrica');
+  $('flGuardar').disabled = !s;
+  $('flDescartar').disabled = !s;
+}
+function flPintarVista(clave){
+  const e = flEstacion(FL_SEL); const c = e.campos.find(x => x.clave === clave);
+  const v = FL_BORRADOR.textos[clave];
+  const box = $(`flVista_${clave}`);
+  if (c.tipo === 'telegram') box.innerHTML = `<div class="fl-tg"><div class="fl-burbuja">${flPreviewHtml(v)}</div></div>`;
+  else if (c.tipo === 'asunto') box.innerHTML = `<div class="fl-mail"><div class="fl-asunto"><b style="display:inline;color:#555;">Asunto:</b> ${flPreviewHtml(v)}</div><span style="color:#9aa7bd;font-size:12px;">Así aparece en la bandeja de entrada.</span></div>`;
+  else box.innerHTML = `<div class="fl-mail"><div style="color:#34d399;font-weight:800;margin-bottom:6px;">🔔 Monitor JCF</div>${flPreviewHtml(v).replace(/\n/g, '<br>')}</div>`;
+  $(`flCuenta_${clave}`).textContent = `${v.length} caracteres`;
+}
+function flPintarDetalle(){
+  const e = flEstacion(FL_SEL);
+  const d = $('flDetalle');
+  if (!e) { d.innerHTML = ''; return; }
+  const cab = `<div class="fl-cab"><div class="fl-icono">${escHtml(e.icono)}</div>
+      <div><small>Estación ${e.num} · ${escHtml(FL_ETAPAS.find(x => x.id === e.etapa)?.t || 'En cualquier momento')}</small><h2>${escHtml(e.titulo)}</h2></div>
+      <div class="fl-switch">${e.proximamente ? '<span class="fl-siempre" style="background:#f0ecff;color:#5b3fd1;">Próximamente · Fase 3</span>'
+        : e.apagable ? `<span id="flSwitchTxt">${FL_BORRADOR.activo ? 'Encendida' : 'Apagada'}</span><button class="toggle ${FL_BORRADOR.activo ? 'on' : ''}" id="flSwitch" aria-label="Encender o apagar"></button>`
+        : '<span class="fl-siempre" title="Mensaje esencial: sin él el flujo se rompe">Siempre activa</span>'}</div></div>`;
+  const info = `<div class="fl-info">
+      <div><b>Cuándo se dispara</b><p>${escHtml(e.cuando)}</p></div>
+      <div><b>A quién le llega</b><p>${escHtml(e.quien)}</p></div>
+      <div><b>Canales</b><p>${e.canales.map(c => `<span class="fl-canal ${c}">${FL_CANAL[c]}</span>`).join('')}</p></div></div>`;
+  if (e.proximamente) {
+    d.innerHTML = cab + info + `<div class="fl-prox"><strong>Aviso de vencimiento VIP</strong>Hoy la cuenta vuelve a Gratis en silencio. En la Fase 3 aquí podrás editar el aviso con la invitación a renovar.</div>`;
+    return;
+  }
+  const params = e.params.length ? `<div class="fl-params"><span style="font-size:12px;color:var(--muted);font-weight:700;">CANTIDADES</span>${e.params.map(p =>
+      `<span class="fl-param">${escHtml(p.etiqueta)} <strong>${p.valor}</strong> ${escHtml(p.unidad)}</span>`).join('')}
+      <span style="font-size:12px;color:var(--muted);">Ajustables con ▲▼ en la Fase 2.</span></div>` : '';
+  const vars = e.variables.length ? `<div class="fl-vars"><span>Insertar variable:</span>${e.variables.map(v =>
+      `<button type="button" data-var="${v}" title="${escHtml(FL.variables[v] || '')}">{${v}}</button>`).join('')}</div>` : '';
+  const campos = `<div class="fl-campos">${e.campos.map(c => `<div class="fl-campo">
+      <div><label for="flCampo_${c.clave}">${escHtml(c.etiqueta)} ${c.personalizado ? '<span class="fl-badge">Personalizado</span>' : ''}</label>
+        ${c.tipo === 'asunto'
+          ? `<input id="flCampo_${c.clave}" data-campo="${c.clave}" maxlength="200" />`
+          : `<textarea id="flCampo_${c.clave}" data-campo="${c.clave}" maxlength="3500"></textarea>`}
+        <div class="fl-cuenta" id="flCuenta_${c.clave}"></div></div>
+      <div class="fl-vista"><b>Vista previa (datos de ejemplo)</b><div id="flVista_${c.clave}"></div></div></div>`).join('')}</div>`;
+  const correoPrueba = e.campos.some(c => c.tipo !== 'telegram')
+    ? `<input id="flCorreoPrueba" type="email" placeholder="correo para la prueba" />` : '';
+  const pie = `<div class="fl-pie"><span class="fl-estado" id="flEstadoPie"></span>
+      <button class="btn btn-outline" id="flDescartar">Descartar</button>
+      <button class="btn btn-outline" id="flRestaurar" style="color:#c0491f;" title="Regresar esta estación a sus valores de fábrica">↺ De fábrica</button>
+      ${correoPrueba}
+      <button class="btn btn-secondary" id="flProbar" title="Te lo manda solo a ti, con datos de ejemplo (aunque no lo hayas guardado)">🧪 Enviarme prueba</button>
+      <button class="btn btn-primary" id="flGuardar">Guardar cambios</button></div>`;
+  d.innerHTML = cab + info + params + vars + campos + pie;
+  for (const c of e.campos) { $(`flCampo_${c.clave}`).value = FL_BORRADOR.textos[c.clave]; flPintarVista(c.clave); }
+  if ($('flCorreoPrueba')) {
+    let guardado = ''; try { guardado = localStorage.getItem('jcf_admin_correo_prueba') || ''; } catch {}
+    $('flCorreoPrueba').value = guardado || FL.admin.correo;
+  }
+  flActualizarPie();
+}
+function flElegir(clave){
+  const e = flEstacion(clave); if (!e) return;
+  if (FL_SEL && FL_SEL !== clave && flSucio() && !confirm('Tienes cambios sin guardar en esta estación. ¿Descartarlos?')) return;
+  FL_SEL = clave;
+  FL_BORRADOR = { activo: e.activo, textos: Object.fromEntries(e.campos.map(c => [c.clave, c.valor])) };
+  FL_ULTIMO_CAMPO = e.campos[0]?.clave || null;
+  flPintarMapa(); flPintarDetalle();
+}
+async function cargarFlujo(){
+  const r = await api('flujo');
+  FL = r;
+  flElegir(FL_SEL && flEstacion(FL_SEL) ? FL_SEL : FL.estaciones[0].clave);
+}
+function flTrasGuardar(r, aviso){
+  FL = { ...FL, estaciones: r.estaciones };
+  const clave = FL_SEL; FL_SEL = null; flElegir(clave);
+  notify(aviso);
+}
+$('flMapa').addEventListener('click', e => { const b = e.target.closest('[data-fl]'); if (b) { flElegir(b.dataset.fl); $('flDetalle').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+$('flDetalle').addEventListener('input', e => {
+  const campo = e.target.dataset?.campo; if (!campo) return;
+  FL_BORRADOR.textos[campo] = e.target.value; FL_ULTIMO_CAMPO = campo;
+  flPintarVista(campo); flActualizarPie();
+});
+$('flDetalle').addEventListener('focusin', e => { if (e.target.dataset?.campo) FL_ULTIMO_CAMPO = e.target.dataset.campo; });
+$('flDetalle').addEventListener('click', async e => {
+  const t = e.target.closest('button'); if (!t) return;
+  const est = flEstacion(FL_SEL);
+  if (t.dataset.var) {
+    const el = $(`flCampo_${FL_ULTIMO_CAMPO}`); if (!el) return;
+    const ini = el.selectionStart ?? el.value.length, fin = el.selectionEnd ?? el.value.length;
+    el.value = el.value.slice(0, ini) + `{${t.dataset.var}}` + el.value.slice(fin);
+    el.focus(); el.selectionStart = el.selectionEnd = ini + t.dataset.var.length + 2;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+  if (t.id === 'flSwitch') {
+    FL_BORRADOR.activo = !FL_BORRADOR.activo;
+    t.classList.toggle('on', FL_BORRADOR.activo); $('flSwitchTxt').textContent = FL_BORRADOR.activo ? 'Encendida' : 'Apagada';
+    flActualizarPie(); return;
+  }
+  if (t.id === 'flDescartar') { const c = FL_SEL; FL_SEL = null; flElegir(c); return; }
+  if (t.id === 'flGuardar') {
+    if (!FL_BORRADOR.activo && est.apagable && est.activo && !confirm(`Vas a APAGAR "${est.titulo}": ningún cliente lo recibirá hasta que lo vuelvas a encender. ¿Continuar?`)) return;
+    t.disabled = true;
+    try { flTrasGuardar(await api('flujo-guardar', 'POST', { clave: FL_SEL, activo: FL_BORRADOR.activo, textos: FL_BORRADOR.textos }), 'Estación guardada — aplica desde el próximo envío.'); }
+    catch (err) { notify('Error: ' + err.message); t.disabled = false; }
+    return;
+  }
+  if (t.id === 'flRestaurar') {
+    if (!confirm(`¿Regresar "${est.titulo}" a sus textos y valores de fábrica?`)) return;
+    try { flTrasGuardar(await api('flujo-restaurar', 'POST', { clave: FL_SEL }), 'Estación restaurada de fábrica.'); }
+    catch (err) { notify('Error: ' + err.message); }
+    return;
+  }
+  if (t.id === 'flProbar') {
+    const correo = $('flCorreoPrueba')?.value.trim();
+    try { if (correo) localStorage.setItem('jcf_admin_correo_prueba', correo); } catch {}
+    t.disabled = true; t.textContent = 'Enviando…';
+    try {
+      const { resultado } = await api('flujo-probar', 'POST', { clave: FL_SEL, textos: FL_BORRADOR.textos, correo });
+      const partes = [];
+      if (resultado.telegram) partes.push('Telegram: ' + resultado.telegram);
+      if (resultado.correo) partes.push('Correo: ' + resultado.correo);
+      notify('Prueba — ' + partes.join(' · '));
+    } catch (err) { notify('Error: ' + err.message); }
+    finally { t.disabled = false; t.textContent = '🧪 Enviarme prueba'; }
+  }
+});
+$('flRestaurarTodo').addEventListener('click', async () => {
+  if (!confirm('¿Regresar TODAS las estaciones a sus textos y valores de fábrica? Se pierden todos tus cambios del flujo.')) return;
+  try { flTrasGuardar(await api('flujo-restaurar', 'POST', { todo: true }), 'Todo el flujo quedó de fábrica.'); }
+  catch (err) { notify('Error: ' + err.message); }
+});
+
 // --- Banners de la página de registro (base64) ----------------------------------
 const UBICACION_BANNER = {
   1: 'Arriba del registro · 1.ª', 2: 'Arriba del registro · 2.ª',

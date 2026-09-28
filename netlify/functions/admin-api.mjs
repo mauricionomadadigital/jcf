@@ -5,6 +5,8 @@
 import { normalizar, estadoTexto, descargarCatalogo, enviarTelegram } from './lib/dtmlp.mjs';
 import { guardarMensaje, hiloDe, enviarTelegramTexto } from './lib/soporte.mjs';
 import { validarBase64Imagen, TOTAL_BANNERS, MAX_BYTES_BANNER } from './lib/banners.mjs';
+import { cargarFlujo } from './lib/flujo.mjs';
+import { estadoFlujo, guardarEstacion, restaurarEstacion, probarEstacion } from './lib/flujo-admin.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -268,6 +270,23 @@ export default async (req) => {
       const [suscriptores, soporte] = await Promise.all([listarSuscriptores(), resumenSoporte()]);
       return json({ ok: true, suscriptores: suscriptores.map(s => ({ ...s, soporte: soporte[s.id] || null })) });
     }
+    // --- Flujo del cliente (Admin > Flujo) -----------------------------------
+    if (req.method === 'GET' && action === 'flujo') return json({ ok: true, ...(await estadoFlujo()) });
+    if (req.method === 'POST' && action === 'flujo-guardar') {
+      try { await guardarEstacion(await req.json()); } catch (err) { return json({ error: err.message }, 400); }
+      return json({ ok: true, ...(await estadoFlujo()) });
+    }
+    if (req.method === 'POST' && action === 'flujo-restaurar') {
+      const { clave, todo } = await req.json();
+      if (!clave && !todo) return json({ error: 'Indica la estación o todo.' }, 400);
+      await restaurarEstacion(todo ? null : clave);
+      return json({ ok: true, ...(await estadoFlujo()) });
+    }
+    if (req.method === 'POST' && action === 'flujo-probar') {
+      try { return json({ ok: true, resultado: await probarEstacion(await req.json()) }); }
+      catch (err) { return json({ error: err.message }, 400); }
+    }
+
     // --- Banners de la página de registro -------------------------------------
     if (req.method === 'GET' && action === 'banners') {
       let filas = [];
@@ -323,7 +342,7 @@ export default async (req) => {
       await guardarMensaje({ suscriptorId: id, autor: 'admin', canal: 'telegram', texto: limpio });
       // La respuesta le llega por el bot; además queda visible en su panel.
       const r = s.telegram_chat_id
-        ? await enviarTelegramTexto(s.telegram_chat_id, `💬 Respuesta de soporte Monitor JCF:\n\n${limpio}`)
+        ? await enviarTelegramTexto(s.telegram_chat_id, `${(await cargarFlujo()).texto('soporte', 'prefijo_respuesta', {})}\n\n${limpio}`)
         : { ok: false, description: 'no tiene Telegram vinculado' };
       return json({ ok: true, telegram: r.ok, aviso: r.ok ? null : `Guardado en su panel, pero no llegó por Telegram (${r.description}).`, mensajes: await hiloDe(id, 300) });
     }

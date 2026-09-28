@@ -14,6 +14,7 @@ import { enviarTelegram } from './lib/dtmlp.mjs';
 import { enviarCorreo } from './lib/email.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
 import { normalizarPrecio, formatoMxn } from './lib/precio.mjs';
+import { cargarFlujo, textoAHtml } from './lib/flujo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -43,36 +44,28 @@ async function leerSuscriptoresActivos() {
   return res.json();
 }
 
-function textoTelegram({ dias, municipio, estado, esFree, bajaLink, precioTxt }) {
-  const base = `⏳ Faltan ${dias} día${dias === 1 ? '' : 's'} para que abra el registro de Jóvenes Construyendo el Futuro en ${municipio}, ${estado}.
-
-📝 Haz tu preregistro en la plataforma oficial en cuanto esté disponible.
-📄 Ten a la mano el día de la apertura: tu INE, tu CURP y un comprobante de domicilio ORIGINAL.
-🤳 También te van a pedir tomarte una selfie ese día — prepárate.`;
-
-  const upsell = esFree
-    ? `\n\nActualmente tienes el plan Gratis. Con VIP (${precioTxt}, 14 días) además de Telegram recibes correo y una llamada automática en cuanto abra tu municipio — más posibilidades de enterarte a tiempo. Súbete aquí: ${SITE_URL}/checkout-vip.html`
-    : '';
-
+// Estación 4 del flujo (Admin > Flujo): el mismo texto editable sirve
+// para Telegram y para el cuerpo del correo; a Gratis se le agrega la
+// invitación a VIP. La línea de baja es fija (obligatoria).
+function textoTelegram({ flujo, vars, esFree, bajaLink }) {
+  const base = flujo.texto('cuenta_regresiva', 'texto', vars);
+  const upsell = esFree ? '\n\n' + flujo.texto('cuenta_regresiva', 'upsell', vars) : '';
   return `${base}${upsell}\n\nSi no quieres recibir más recordatorios como este, date de baja aquí: ${bajaLink}`;
 }
 
-function htmlCorreo({ dias, municipio, estado, esFree, bajaLink, precioTxt }) {
+function htmlCorreo({ flujo, vars, esFree, bajaLink }) {
+  const upsell = esFree
+    ? `<p style="background:#101c30;border-radius:10px;padding:14px;border:1px solid rgba(52,211,153,0.2);">${textoAHtml(flujo.texto('cuenta_regresiva', 'upsell', vars))}</p>`
+    : '';
   return `
     <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:32px;background:#0a1220;color:#eef2f9;border-radius:16px;">
-      <h1 style="color:#34d399;margin-bottom:8px;">⏳ Faltan ${dias} día${dias === 1 ? '' : 's'}</h1>
-      <p style="color:#9aa7bd;">Para que abra el registro de Jóvenes Construyendo el Futuro en:</p>
+      <h1 style="color:#34d399;margin-bottom:8px;">⏳ Faltan ${vars.faltan_dias}</h1>
       <div style="background:#101c30;border-radius:12px;padding:20px;margin:16px 0;border:1px solid rgba(52,211,153,0.25);">
-        <p style="margin:0 0 10px;font-size:18px;font-weight:600;">${municipio}</p>
-        <p style="margin:0;font-size:16px;">${estado}</p>
+        <p style="margin:0 0 10px;font-size:18px;font-weight:600;">${vars.municipio}</p>
+        <p style="margin:0;font-size:16px;">${vars.estado}</p>
       </div>
-      <p><strong>Antes de que abra:</strong></p>
-      <ul style="color:#9aa7bd;padding-left:18px;">
-        <li>Haz tu preregistro en la plataforma oficial en cuanto esté disponible.</li>
-        <li>Ten a la mano tu <strong>INE</strong>, tu <strong>CURP</strong> y un <strong>comprobante de domicilio original</strong>.</li>
-        <li>Te van a pedir tomarte una <strong>selfie</strong> el día de la apertura.</li>
-      </ul>
-      ${esFree ? `<p style="background:#101c30;border-radius:10px;padding:14px;border:1px solid rgba(52,211,153,0.2);">Actualmente tienes el plan <strong>Gratis</strong>. Con <strong>VIP</strong> (${precioTxt}, 14 días) además de Telegram recibes correo y una <strong>llamada automática</strong> en cuanto abra tu municipio. <a href="${SITE_URL}/checkout-vip.html" style="color:#34d399;">Súbete a VIP</a>.</p>` : ''}
+      <p style="color:#dbe4f0;line-height:1.55;">${textoAHtml(flujo.texto('cuenta_regresiva', 'texto', vars))}</p>
+      ${upsell}
       <p style="color:#9aa7bd;font-size:12px;margin-top:20px;">Si no quieres recibir más recordatorios como este, <a href="${bajaLink}" style="color:#9aa7bd;">date de baja aquí</a>.</p>
     </div>
   `;
@@ -85,6 +78,11 @@ export default async () => {
 
     if (!config || !config.fecha_estimada_apertura || hoy >= config.fecha_estimada_apertura) {
       return new Response(JSON.stringify({ ok: true, motivo: 'Sin fecha de apertura configurada, o ya llegó — sin recordatorio.' }));
+    }
+
+    const flujo = await cargarFlujo();
+    if (!flujo.activo('cuenta_regresiva')) {
+      return new Response(JSON.stringify({ ok: true, motivo: 'Estación "Cuenta regresiva" apagada en Admin > Flujo.' }));
     }
 
     const store = getStore('jcf-nacional');
@@ -103,19 +101,23 @@ export default async () => {
     for (const s of suscriptores) {
       const bajaLink = `${SITE_URL}/.netlify/functions/baja?token=${s.telegram_token}`;
       const esFree = s.plan !== 'vip';
+      const vars = {
+        faltan_dias: `${dias} día${dias === 1 ? '' : 's'}`, municipio: s.municipio, estado: s.estado,
+        precio: precioTxt, link_vip: `${SITE_URL}/checkout-vip.html`
+      };
 
       if (s.telegram_enabled !== false && s.telegram_chat_id) {
         const ok = await enviarTelegram(
           TELEGRAM_BOT_TOKEN, s.telegram_chat_id,
-          textoTelegram({ dias, municipio: s.municipio, estado: s.estado, esFree, bajaLink, precioTxt })
+          textoTelegram({ flujo, vars, esFree, bajaLink })
         );
         if (ok) telegramEnviados++;
       }
       if (s.email_enabled !== false && s.email) {
         await enviarCorreo(
           s.email,
-          `⏳ Faltan ${dias} día${dias === 1 ? '' : 's'} para la apertura — Monitor JCF`,
-          htmlCorreo({ dias, municipio: s.municipio, estado: s.estado, esFree, bajaLink, precioTxt })
+          flujo.texto('cuenta_regresiva', 'asunto', vars),
+          htmlCorreo({ flujo, vars, esFree, bajaLink })
         );
         correoEnviados++;
       }

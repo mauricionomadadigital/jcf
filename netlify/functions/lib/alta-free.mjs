@@ -7,6 +7,7 @@
 
 import { hashPassword, generarCodigoReferido } from './auth.mjs';
 import { enviarCorreo, plantillaBienvenida } from './email.mjs';
+import { cargarFlujo } from './flujo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -101,12 +102,17 @@ export async function altaFree({ email, estado, municipio, password, referredBy,
     [suscriptor] = await res.json();
   }
 
+  // Estación 1 del flujo (Admin > Flujo): asunto y textos editables.
+  const flujo = await cargarFlujo();
+  const vars = { nombre: suscriptor.nombre || nombre || '', municipio, estado };
+  const asunto = flujo.texto('bienvenida_gratis', 'asunto', vars);
+
   if (suscriptor.telegram_chat_id) {
     // Ya estaba vinculado desde antes — no hace falta pedirle que vuelva
     // a dar clic en ningún link de Telegram.
     await enviarCorreo(
       email,
-      '✅ Tu monitoreo gratuito de JCF ya está activo',
+      asunto,
       `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:32px;background:#0a1220;color:#eef2f9;border-radius:16px;">
         <h1 style="color:#34d399;margin-bottom:8px;">🔔 Monitor JCF</h1>
         <p style="color:#9aa7bd;">¡Listo! Tu cuenta quedó activa de nuevo — tu Telegram ya está vinculado, no hace falta hacer nada más.</p>
@@ -122,8 +128,12 @@ export async function altaFree({ email, estado, municipio, password, referredBy,
     const telegramLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${suscriptor.telegram_token}`;
     await enviarCorreo(
       email,
-      '✅ Tu monitoreo gratuito de JCF ya está activo',
-      plantillaBienvenida({ plan: 'free', municipio, estado, telegramLink })
+      asunto,
+      plantillaBienvenida({
+        plan: 'free', municipio, estado, telegramLink,
+        intro: flujo.texto('bienvenida_gratis', 'intro', vars),
+        paso: flujo.texto('bienvenida_gratis', 'paso', vars)
+      })
     );
   }
 

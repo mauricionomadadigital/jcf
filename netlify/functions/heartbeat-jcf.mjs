@@ -7,6 +7,8 @@
 
 import { descargarCatalogo, estadoTexto, normalizar, enviarTelegram } from './lib/dtmlp.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
+import { getStore } from '@netlify/blobs';
+import { cargarFlujo } from './lib/flujo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -44,6 +46,20 @@ export default async () => {
       return new Response(JSON.stringify({ ok: true, motivo: 'Fuera del periodo — sin heartbeat.' }));
     }
 
+    // Estación 3 del flujo (Admin > Flujo): se puede apagar, y se manda
+    // cada N horas (de fábrica 24) aunque este cron corra cada hora.
+    const flujo = await cargarFlujo();
+    if (!flujo.activo('seguimos_vigilando')) {
+      return new Response(JSON.stringify({ ok: true, motivo: 'Estación "Seguimos vigilando" apagada en Admin > Flujo.' }));
+    }
+    const cadaHoras = flujo.param('seguimos_vigilando', 'cada_horas');
+    const store = getStore('jcf-nacional');
+    const ultimo = await store.get('heartbeat_ultimo', { type: 'text' });
+    // 5 min de tolerancia para el desfase normal del cron.
+    if (ultimo && Date.now() - new Date(ultimo).getTime() < cadaHoras * 3600000 - 5 * 60000) {
+      return new Response(JSON.stringify({ ok: true, motivo: `Aún no toca: se manda cada ${cadaHoras} h.` }));
+    }
+
     const suscriptores = await leerSuscriptoresActivos();
     if (suscriptores.length === 0) {
       return new Response(JSON.stringify({ ok: true, motivo: 'Sin suscriptores con Telegram vinculado.' }));
@@ -66,11 +82,12 @@ export default async () => {
       const ok = await enviarTelegram(
         TELEGRAM_BOT_TOKEN,
         s.telegram_chat_id,
-        `✅ Seguimos vigilando ${s.municipio}, ${s.estado}\nEstado actual: Cerrado\nÚltima revisión: ${hora} hrs\n\nTe avisaremos en cuanto abra.`
+        flujo.texto('seguimos_vigilando', 'texto', { municipio: s.municipio, estado: s.estado, hora })
       );
       if (ok) enviados++;
     }
 
+    await store.set('heartbeat_ultimo', new Date().toISOString());
     return new Response(JSON.stringify({ ok: true, revisados: suscriptores.length, enviados }));
   } catch (err) {
     console.error('Error heartbeat-jcf:', err.message);

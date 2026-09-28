@@ -8,6 +8,7 @@ import {
   suscriptorDesdeToken, tokenDesdeRequest, generarTokenReset
 } from './lib/auth.mjs';
 import { enviarCorreo } from './lib/email.mjs';
+import { cargarFlujo, textoAHtml } from './lib/flujo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -109,12 +110,13 @@ export default async (req) => {
           body: JSON.stringify({ reset_token: token, reset_token_expires: expires })
         });
         const link = `${SITE_URL}/?reset=${token}`;
+        const flujo = await cargarFlujo(); // estación 12 (Admin > Flujo)
         await enviarCorreo(
           suscriptor.email,
-          'Recupera tu acceso a Monitor JCF',
+          flujo.texto('recuperar_password', 'asunto', {}),
           `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:28px;background:#0a1220;color:#eef2f9;border-radius:14px;">
              <h2 style="color:#34d399;">Monitor JCF</h2>
-             <p>Pediste recuperar tu contraseña. Este enlace es válido por 1 hora:</p>
+             <p>${textoAHtml(flujo.texto('recuperar_password', 'parrafo', {}))}</p>
              <p style="text-align:center;margin:22px 0;"><a href="${link}" style="background:#34d399;color:#06281c;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Elegir nueva contraseña</a></p>
              <p style="color:#9aa7bd;font-size:12px;">Si no fuiste tú, ignora este correo.</p>
            </div>`

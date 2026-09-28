@@ -5,6 +5,7 @@
 // a la fila de `suscriptores` que se creó en el webhook de pago.
 
 import { guardarMensaje, avisarAdmin } from './lib/soporte.mjs';
+import { cargarFlujo } from './lib/flujo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -73,6 +74,8 @@ export default async (req) => {
 
     const chatId = msg.chat.id;
     const texto = msg.text.trim();
+    const flujo = await cargarFlujo(); // textos editables en Admin > Flujo
+    const linkVip = `${SITE_URL}/checkout-vip.html`;
 
     // Formato esperado: "/start <token>"
     const match = texto.match(/^\/start\s+(\S+)/);
@@ -86,16 +89,16 @@ export default async (req) => {
         if (cuenta && cuenta.plan === 'vip') {
           await guardarMensaje({ suscriptorId: cuenta.id, autor: 'cliente', canal: 'telegram', texto });
           await avisarAdmin(cuenta, texto, 'Telegram');
-          await enviarMensaje(chatId, '✅ Recibimos tu mensaje. Te respondemos por aquí mismo en cuanto podamos.');
+          await enviarMensaje(chatId, flujo.texto('soporte', 'recibido', {}));
           return new Response('OK', { status: 200 });
         }
         if (cuenta) {
-          await enviarMensaje(chatId, `El soporte directo por este chat es exclusivo del plan VIP. Si quieres subir a VIP: ${SITE_URL}/checkout-vip.html`);
+          await enviarMensaje(chatId, flujo.texto('soporte', 'solo_vip', { link_vip: linkVip }));
           return new Response('OK', { status: 200 });
         }
       }
       if (texto === '/start') {
-        await enviarMensaje(chatId, 'Para vincular tu monitoreo, abre el link que te llegó por correo al registrarte (revisa también spam), o el botón de Telegram en tu panel.');
+        await enviarMensaje(chatId, flujo.texto('bot_avisos', 'sin_codigo', {}));
       }
       return new Response('OK', { status: 200 });
     }
@@ -104,20 +107,21 @@ export default async (req) => {
     const suscriptor = await buscarPorToken(token);
 
     if (!suscriptor) {
-      await enviarMensaje(chatId, 'No encontramos un registro con ese link. Si el problema sigue, escríbenos.');
+      await enviarMensaje(chatId, flujo.texto('bot_avisos', 'link_invalido', {}));
       return new Response('OK', { status: 200 });
     }
 
     if (!suscriptor.activo) {
-      await enviarMensaje(chatId, 'Tu suscripción ya no está activa. Si crees que es un error, contáctanos.');
+      await enviarMensaje(chatId, flujo.texto('bot_avisos', 'inactiva', {}));
       return new Response('OK', { status: 200 });
     }
 
     await vincularChatId(suscriptor.id, chatId);
+    const vars = { municipio: suscriptor.municipio, estado: suscriptor.estado };
     await enviarMensaje(
       chatId,
-      `✅ ¡Listo! Quedaste vinculado.\n\nEstamos monitoreando: ${suscriptor.municipio}, ${suscriptor.estado}\n\nTe avisaremos por aquí en cuanto abra.` +
-        (suscriptor.plan === 'vip' ? '\n\n💬 Como eres VIP, si tienes dudas o algo no funciona, escríbenos aquí mismo en este chat.' : '')
+      flujo.texto('telegram_vinculado', 'texto', vars) +
+        (suscriptor.plan === 'vip' ? '\n\n' + flujo.texto('telegram_vinculado', 'extra_vip', vars) : '')
     );
 
     return new Response('OK', { status: 200 });

@@ -6,6 +6,7 @@
 import { generarCodigoReferido } from './lib/auth.mjs';
 import { enviarCorreo, plantillaBienvenida, plantillaUpgradeVinculado } from './lib/email.mjs';
 import { enviarCompraMeta } from './lib/meta-capi.mjs';
+import { cargarFlujo } from './lib/flujo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -180,18 +181,21 @@ async function processPayment(paymentId) {
     monto: payment.transaction_amount
   });
 
+  // Estación 8 del flujo (Admin > Flujo): asuntos y textos editables.
+  const flujo = await cargarFlujo();
+  const vars = { nombre: suscriptor.nombre || meta.nombre || '', municipio, estado };
   if (yaVinculado) {
     await enviarCorreo(
       email,
-      '✅ Tu plan VIP de Monitor JCF ya está activo',
-      plantillaUpgradeVinculado({ municipio, estado })
+      flujo.texto('pago_aprobado', 'asunto_vinculado', vars),
+      plantillaUpgradeVinculado({ municipio, estado, intro: flujo.texto('pago_aprobado', 'intro_vinculado', vars) })
     );
   } else {
     const telegramLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${suscriptor.telegram_token}`;
     await enviarCorreo(
       email,
-      '✅ Tu monitoreo VIP de JCF ya está activo',
-      plantillaBienvenida({ plan: 'vip', municipio, estado, telegramLink })
+      flujo.texto('pago_aprobado', 'asunto_nuevo', vars),
+      plantillaBienvenida({ plan: 'vip', municipio, estado, telegramLink, intro: flujo.texto('pago_aprobado', 'intro_nuevo', vars) })
     );
   }
 

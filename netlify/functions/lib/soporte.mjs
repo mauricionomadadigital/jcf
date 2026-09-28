@@ -71,8 +71,3 @@ export async function avisarAdmin(suscriptor, texto, canal) {
     `💬 Nuevo mensaje de soporte (${canal})\n${suscriptor.nombre || ''} <${suscriptor.email}>\n📍 ${suscriptor.municipio}, ${suscriptor.estado}\n\n${texto.slice(0, 1500)}\n\nResponde desde: ${SITE_URL}/admin.html`
   );
 }
-
-// Línea que se agrega a los avisos de monitoreo de VIP.
-export function lineaSoporteVip() {
-  return `\n\n💬 ¿Dudas, preguntas o algo no funciona? Escríbenos aquí mismo en este chat, o desde tu panel: ${SITE_URL}/panel.html#soporte`;
-}

@@ -17,7 +17,9 @@
 
 import { getStore } from '@netlify/blobs';
 import { descargarCatalogo, estadoTexto, normalizar, enviarTelegram } from './lib/dtmlp.mjs';
-import { lineaSoporteVip } from './lib/soporte.mjs';
+import { cargarFlujo, textoAHtml } from './lib/flujo.mjs';
+
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
 import { enviarCorreo } from './lib/email.mjs';
 import { llamarTalkyria } from './lib/talkyria.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
@@ -211,9 +213,13 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
   await store.setJSON(claveSnapshot, snapshotNuevo);
 
   const ahora = Date.now();
-  const MAX_RECORDATORIOS = 4;
-  const VENTANA_MS = 60 * 60 * 1000;
-  const ESPACIADO_MS = 15 * 60 * 1000;
+  // Estaciones 5, 6 y 7 del flujo (Admin > Flujo): textos, encendido y
+  // cantidades de los recordatorios VIP, editables sin deploy.
+  const flujo = await cargarFlujo();
+  const MAX_RECORDATORIOS = flujo.param('recordatorio_vip', 'maximo');
+  const VENTANA_MS = flujo.param('recordatorio_vip', 'ventana_min') * 60 * 1000;
+  const ESPACIADO_MS = flujo.param('recordatorio_vip', 'espaciado_min') * 60 * 1000;
+  const lineaSoporte = '\n\n' + flujo.texto('apertura', 'extra_vip', { link_soporte: `${SITE_URL}/panel.html#soporte` });
   const refuerzos = plan === 'vip' ? ((await store.get(claveRefuerzos, { type: 'json' })) || {}) : {};
 
   let alertasEnviadas = 0;
@@ -231,14 +237,18 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
 
     const destinatarios = suscriptores.filter(s => normalizar(s.estado) + '|' + normalizar(s.municipio) === cambio.clave);
 
+    const esApertura = cambio.estadoNuevo === 'Abierto';
+    const vars = { municipio: cambio.municipio, estado: estadoNombreReal, estado_nuevo: cambio.estadoNuevo };
     for (const s of destinatarios) {
-      const textoTelegram = cambio.estadoNuevo === 'Abierto'
-        ? `🔔🟢 ¡${cambio.municipio} ESTÁ ABIERTO AHORA!\n\n📍 ${estadoNombreReal}\n\n👉 Entra a la plataforma de Jóvenes Construyendo el Futuro y regístrate — los cupos se llenan rápido.`
-        : `ℹ️ Actualización de ${cambio.municipio}, ${estadoNombreReal}\n\nEstado actual: ${cambio.estadoNuevo}\n\nSi ya alcanzó la meta, probablemente el cupo se llenó. Seguimos monitoreando por si hay más cambios.`;
+      const textoTelegram = esApertura
+        ? flujo.texto('apertura', 'texto', vars)
+        : flujo.texto('cambio_estado', 'texto', vars);
+      // El aviso de apertura nunca se apaga; el de cambio de estado sí.
+      const enviarTg = esApertura || flujo.activo('cambio_estado');
 
-      if (s.telegram_enabled !== false && s.telegram_chat_id) {
+      if (enviarTg && s.telegram_enabled !== false && s.telegram_chat_id) {
         // A VIP se le agrega el acceso a soporte directo.
-        const ok = await enviarTelegram(TELEGRAM_BOT_TOKEN, s.telegram_chat_id, textoTelegram + (plan === 'vip' ? lineaSoporteVip() : ''));
+        const ok = await enviarTelegram(TELEGRAM_BOT_TOKEN, s.telegram_chat_id, textoTelegram + (plan === 'vip' ? lineaSoporte : ''));
         if (ok) alertasEnviadas++;
       }
 
@@ -247,10 +257,10 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
       if (cambio.estadoNuevo === 'Abierto' && s.email_enabled !== false && s.email) {
         await enviarCorreo(
           s.email,
-          `🟢 ${cambio.municipio} está abierto — Monitor JCF`,
+          flujo.texto('apertura', 'asunto', vars),
           `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:26px;background:#0a1220;color:#eef2f9;border-radius:14px;">
             <h2 style="color:#34d399;">¡${cambio.municipio} está abierto!</h2>
-            <p>${estadoNombreReal} — entra a la plataforma oficial de Jóvenes Construyendo el Futuro y regístrate lo antes posible.</p>
+            <p>${textoAHtml(flujo.texto('apertura', 'correo', vars))}</p>
             <p style="text-align:center;margin:20px 0;"><a href="https://jovenesconstruyendoelfuturo.stps.gob.mx/" style="background:#34d399;color:#06281c;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Ir a la plataforma oficial</a></p>
           </div>`
         );
@@ -278,7 +288,7 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
     // Recordatorios reforzados: solo VIP, porque su cadencia de minutos
     // encaja con espaciarlos cada ~15 min — en Free no tiene sentido con
     // una revisión de 1-2 horas.
-    if (plan === 'vip') {
+    if (plan === 'vip' && flujo.activo('recordatorio_vip')) {
       if (cambio.estadoNuevo === 'Abierto') {
         refuerzos[cambio.clave] = { primera: ahora, ultimo: ahora, count: 1 };
       } else {
@@ -287,7 +297,7 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
     }
   }
 
-  if (plan === 'vip') {
+  if (plan === 'vip' && flujo.activo('recordatorio_vip')) {
     for (const [clave, texto] of Object.entries(snapshotNuevo)) {
       if (texto !== 'Abierto') continue;
       const r = refuerzos[clave];
@@ -307,7 +317,7 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
       for (const s of destinatarios) {
         const ok = await enviarTelegram(
           TELEGRAM_BOT_TOKEN, s.telegram_chat_id,
-          `🔔🟢 Recordatorio (${r.count + 1}/${MAX_RECORDATORIOS}): ${municipioNombreReal} sigue ABIERTO\n\n📍 ${estadoNombreReal}\n\n👉 Si aún no te registras, entra a la plataforma ahora — puede cerrar en cualquier momento.` + lineaSoporteVip()
+          flujo.texto('recordatorio_vip', 'texto', { n: r.count + 1, total: MAX_RECORDATORIOS, municipio: municipioNombreReal, estado: estadoNombreReal }) + lineaSoporte
         );
         if (ok) alertasEnviadas++;
       }
