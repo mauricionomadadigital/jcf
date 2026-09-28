@@ -1,8 +1,10 @@
 // public/pixel.js
 // Meta Pixel de Monitor JCF (ID 1456607546341278), compartido por todas
-// las páginas públicas (el panel admin NO lo carga). Solo manda eventos y
-// datos de la compra — nunca correo, nombre ni teléfono del cliente. (La
-// compra también se reporta desde el servidor: lib/meta-capi.mjs.)
+// las páginas públicas (el panel admin NO lo carga). En el panel y el
+// checkout se le pasan el correo y el teléfono de la cuenta (coincidencias
+// avanzadas): el propio pixel los cifra con SHA-256 antes de enviarlos, y
+// nunca se manda el nombre. La compra también se reporta desde el
+// servidor: lib/meta-capi.mjs.
 //
 // Eventos del embudo:
 //   PageView             todas las páginas públicas (aquí mismo)
@@ -32,12 +34,33 @@ window.jcfPixelUnaVez = function (clave, evento, datos, opciones) {
   window.jcfPixel(evento, datos, opciones);
 };
 // Registro recién terminado: el alta con correo lo marca en sessionStorage
-// y el de Google llega con #nuevo=1. Se dispara una sola vez.
+// y el de Google llega con #nuevo=1. Aquí solo se ANOTA (hay que leerlo
+// antes de que la página limpie el #); el evento sale en jcfPixelUsuario,
+// ya con correo y teléfono, o a los 8 s si la cuenta no llegara a cargar.
+var registroPendiente = false;
+function dispararRegistro() {
+  if (!registroPendiente) return;
+  registroPendiente = false;
+  window.jcfPixel('CompleteRegistration', { content_name: 'Cuenta gratis', status: true, value: 0, currency: 'MXN' });
+}
 window.jcfPixelRegistroNuevo = function () {
-  var nuevo = false;
   try {
-    nuevo = new URLSearchParams(location.hash.replace(/^#/, '')).get('nuevo') === '1' || !!sessionStorage.getItem('jcf_registro_nuevo');
+    registroPendiente = new URLSearchParams(location.hash.replace(/^#/, '')).get('nuevo') === '1' || !!sessionStorage.getItem('jcf_registro_nuevo');
     sessionStorage.removeItem('jcf_registro_nuevo');
   } catch (e) {}
-  if (nuevo) window.jcfPixel('CompleteRegistration', { content_name: 'Cuenta gratis', status: true, value: 0, currency: 'MXN' });
+  if (registroPendiente) setTimeout(dispararRegistro, 8000);
+};
+// Coincidencias avanzadas: datos de la cuenta ya cargada. Correo en
+// minúsculas y teléfono con lada de país, solo dígitos (formato de Meta);
+// el pixel los cifra antes de enviarlos.
+window.jcfPixelUsuario = function (cuenta) {
+  try {
+    if (!cuenta) return;
+    var datos = { country: 'mx' };
+    if (cuenta.email) datos.em = String(cuenta.email).trim().toLowerCase();
+    var tel = String(cuenta.phone || '').replace(/\D/g, '');
+    if (tel) datos.ph = String(cuenta.telefono_prefijo || '+52').replace(/\D/g, '') + tel;
+    fbq('init', '1456607546341278', datos);
+  } catch (e) {}
+  dispararRegistro();
 };

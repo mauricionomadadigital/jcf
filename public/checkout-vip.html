@@ -2373,6 +2373,7 @@ async function cargarCheckout(){
   if (resultadoPago) return;
   const { suscriptor } = await apiAuth('me');
   CUENTA = suscriptor;
+  window.jcfPixelUsuario && jcfPixelUsuario(CUENTA);
   if (CUENTA.plan === 'vip') { location.href = '/panel.html'; return; }
 
   let frecVip = 10, cfg = {};

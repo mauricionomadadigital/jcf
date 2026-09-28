@@ -2651,6 +2651,7 @@ $('customerState').addEventListener('change', actualizarMunicipiosCuenta);
 async function cargarPanel(){
   const { suscriptor } = await apiAuth('me');
   CUENTA = suscriptor;
+  window.jcfPixelUsuario && jcfPixelUsuario(CUENTA);
   $('saludo').textContent = `Hola, ${CUENTA.nombre || CUENTA.email.split('@')[0]} 👋`;
   renderPlan();
   $('selectedPlace').textContent = `${CUENTA.municipio}, ${CUENTA.estado}`;
