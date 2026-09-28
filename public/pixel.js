@@ -1,7 +1,8 @@
 // public/pixel.js
 // Meta Pixel de Monitor JCF (ID 1456607546341278), compartido por todas
 // las páginas públicas (el panel admin NO lo carga). Solo manda eventos y
-// datos de la compra — nunca correo, nombre ni teléfono del cliente.
+// datos de la compra — nunca correo, nombre ni teléfono del cliente. (La
+// compra también se reporta desde el servidor: lib/meta-capi.mjs.)
 //
 // Eventos del embudo:
 //   PageView             todas las páginas públicas (aquí mismo)

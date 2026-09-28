@@ -25,6 +25,7 @@ export default async (req) => {
   const cuentaLogueada = await suscriptorDesdeToken(tokenDesdeRequest(req));
 
   let email, estado, idedo, municipio, password, phone, referredBy, nombre, telefonoPrefijo, passwordHash;
+  let metaFbp = null, metaFbc = null;
 
   if (cuentaLogueada) {
     let body = {};
@@ -35,6 +36,8 @@ export default async (req) => {
     nombre = cuentaLogueada.nombre;
     referredBy = cuentaLogueada.referred_by || null;
     phone = (body.telefono || '').trim() || cuentaLogueada.phone || '';
+    metaFbp = typeof body.fbp === 'string' ? body.fbp.slice(0, 200) : null;
+    metaFbc = typeof body.fbc === 'string' ? body.fbc.slice(0, 300) : null;
     telefonoPrefijo = (body.telefonoPrefijo || cuentaLogueada.telefono_prefijo || '+52').trim();
     passwordHash = undefined; // no se toca la contraseña ya existente
   } else {
@@ -117,7 +120,12 @@ export default async (req) => {
       password_hash: passwordHash,
       referred_by: referredBy,
       plan: 'vip',
-      descuento_aplicado: descuento
+      descuento_aplicado: descuento,
+      // Para la API de Conversiones de Meta (webhook.mjs) — ver lib/meta-capi.mjs.
+      meta_fbp: metaFbp,
+      meta_fbc: metaFbc,
+      meta_ip: req.headers.get('x-nf-client-connection-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null,
+      meta_ua: (req.headers.get('user-agent') || '').slice(0, 400) || null
     },
     statement_descriptor: 'MonitorJCF',
     expires: false

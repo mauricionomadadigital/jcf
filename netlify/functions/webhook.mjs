@@ -5,6 +5,7 @@
 
 import { generarCodigoReferido } from './lib/auth.mjs';
 import { enviarCorreo, plantillaBienvenida, plantillaUpgradeVinculado } from './lib/email.mjs';
+import { enviarCompraMeta } from './lib/meta-capi.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -193,6 +194,14 @@ async function processPayment(paymentId) {
       plantillaBienvenida({ plan: 'vip', municipio, estado, telegramLink })
     );
   }
+
+  // API de Conversiones de Meta: la compra cuenta aunque el cliente no
+  // regrese a la página (OXXO/SPEI) — mismo event_id que el pixel.
+  await enviarCompraMeta({
+    paymentId, monto: payment.transaction_amount, suscriptor, email,
+    telefono: suscriptor.phone || meta.phone, prefijo: suscriptor.telefono_prefijo || meta.telefono_prefijo,
+    fbp: meta.meta_fbp, fbc: meta.meta_fbc, ip: meta.meta_ip, userAgent: meta.meta_ua
+  });
 
   console.log(`✅ Suscriptor VIP: ${email} — ${municipio}, ${estado}`);
   return { ok: true, email, estado, municipio };

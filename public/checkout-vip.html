@@ -2406,7 +2406,13 @@ $('btnConfirmarVip').addEventListener('click', async () => {
     const resp = await fetch('/.netlify/functions/create-preference', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
-      body: JSON.stringify(necesitaTelefono ? { telefono, telefonoPrefijo: $('vipCheckoutPrefijo').value } : {})
+      body: JSON.stringify({
+        ...(necesitaTelefono ? { telefono, telefonoPrefijo: $('vipCheckoutPrefijo').value } : {}),
+        // Cookies del Meta Pixel: permiten ligar la compra (que Meta recibe
+        // desde el servidor al aprobarse el pago) con el anuncio de origen.
+        fbp: (document.cookie.match(/(?:^|; )_fbp=([^;]+)/) || [])[1] || null,
+        fbc: (document.cookie.match(/(?:^|; )_fbc=([^;]+)/) || [])[1] || null
+      })
     });
     const data = await resp.json();
     if (!resp.ok || data.error) throw new Error(data.error || 'No se pudo generar el pago');
