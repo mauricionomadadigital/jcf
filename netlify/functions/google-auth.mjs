@@ -152,7 +152,9 @@ export default async (req) => {
       let suscriptor = await buscarSuscriptorPorEmail(email);
       const vieneDeRegistro = !!(registro && registro.estado && registro.municipio);
 
+      let cuentaNueva = false;
       if (vieneDeRegistro && !(suscriptor && suscriptor.activo)) {
+        cuentaNueva = true;
         // Registro con Google: sin cuenta activa con ese correo, se crea
         // (o se reactiva la archivada) en plan Gratis, igual que con
         // correo+contraseña pero sin contraseña.
@@ -183,7 +185,8 @@ export default async (req) => {
       const destino = (registro?.siguiente === 'vip' && suscriptor.plan !== 'vip')
         ? '/checkout-vip.html'
         : '/panel.html';
-      return ir(`${destino}#token=${token}`);
+      // #nuevo=1 => la página dispara CompleteRegistration del Meta Pixel.
+      return ir(`${destino}#token=${token}${cuentaNueva ? '&nuevo=1' : ''}`);
 
     } catch (err) {
       console.error('Error en callback de Google:', err.message);

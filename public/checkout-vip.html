@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#091a2f" />
     <meta name="description" content="Monitor JCF 24/7 — activa tu alerta y administra tu cuenta" />
     <title>JCF Monitor 24/7 · Activar VIP</title>
+    <script src="/pixel.js"></script>
     <link
       rel="icon"
       type="image/svg+xml"
@@ -2305,6 +2306,7 @@
 const $ = id => document.getElementById(id);
 // El registro/login con Google con "quiero VIP" llega aquí directo con
 // el token en el fragmento (#token=...).
+window.jcfPixelRegistroNuevo && jcfPixelRegistroNuevo();
 const TOKEN_HASH = new URLSearchParams(location.hash.replace(/^#/, '')).get('token');
 if (TOKEN_HASH) {
   localStorage.setItem('jcf_token', TOKEN_HASH);
@@ -2339,6 +2341,20 @@ const RESULTADOS_PAGO = {
   fallido: { titulo: 'El pago no se completó', texto: 'No se realizó el cargo. Puedes intentarlo de nuevo cuando quieras.' }
 };
 const resultadoPago = RESULTADOS_PAGO[new URLSearchParams(location.search).get('pago')];
+// Meta Pixel: compra aprobada. Mercado Pago agrega payment_id a la URL de
+// regreso y create-preference agrega el monto cobrado; el payment_id sirve
+// de eventID y de candado para no contar dos veces la misma compra.
+{
+  const q = new URLSearchParams(location.search);
+  const pagoId = q.get('payment_id') || q.get('collection_id');
+  const aprobado = q.get('pago') === 'exitoso' && (q.get('status') || q.get('collection_status') || 'approved') === 'approved';
+  if (aprobado && window.jcfPixelUnaVez) {
+    const monto = Number(q.get('monto')) || 0;
+    jcfPixelUnaVez('compra_' + (pagoId || q.get('external_reference') || Date.now()), 'Purchase',
+      { value: monto, currency: 'MXN', content_name: 'VIP 14 días', content_type: 'product', content_ids: ['monitor-jcf-vip'], num_items: 1 },
+      pagoId ? { eventID: 'vip-' + pagoId } : {});
+  }
+}
 if (resultadoPago) {
   $('cargando').classList.add('oculto');
   $('resultadoPagoTitulo').textContent = resultadoPago.titulo;
@@ -2372,10 +2388,13 @@ async function cargarCheckout(){
   $('vipCheckoutTelefonoWrap').classList.toggle('oculto', !!CUENTA.phone);
   $('cargando').classList.add('oculto');
   $('checkoutCard').classList.remove('oculto');
+  window.CHECKOUT_PRECIO = precio;
+  window.jcfPixel && jcfPixel('InitiateCheckout', { value: precio, currency: 'MXN', content_name: 'VIP 14 días', content_ids: ['monitor-jcf-vip'], num_items: 1 });
 }
 
 $('btnConfirmarVip').addEventListener('click', async () => {
   const msg = $('vipCheckoutMsg'); msg.textContent = '';
+  window.jcfPixel && jcfPixel('AddPaymentInfo', { value: window.CHECKOUT_PRECIO || 0, currency: 'MXN', content_ids: ['monitor-jcf-vip'] });
   const necesitaTelefono = !$('vipCheckoutTelefonoWrap').classList.contains('oculto');
   const telefono = $('vipCheckoutTelefono').value.trim();
   if (necesitaTelefono && !/^\d{10}$/.test(telefono)) {

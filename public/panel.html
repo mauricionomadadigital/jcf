@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#091a2f" />
     <meta name="description" content="Monitor JCF 24/7 — activa tu alerta y administra tu cuenta" />
     <title>JCF Monitor 24/7 · Mi panel</title>
+    <script src="/pixel.js"></script>
     <link
       rel="icon"
       type="image/svg+xml"
@@ -2552,6 +2553,7 @@ const $ = id => document.getElementById(id);
 // ni se mande a ningún servidor.
 const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
 const GOOGLE_TOKEN = hashParams.get('token');
+window.jcfPixelRegistroNuevo && jcfPixelRegistroNuevo();
 if (GOOGLE_TOKEN) {
   localStorage.setItem('jcf_token', GOOGLE_TOKEN);
   history.replaceState(null, '', location.pathname);

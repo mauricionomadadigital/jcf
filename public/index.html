@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#091a2f" />
     <meta name="description" content="Monitor JCF 24/7 — activa tu alerta y administra tu cuenta" />
     <title>JCF Monitor 24/7 · Activa tu alerta</title>
+    <script src="/pixel.js"></script>
     <link
       rel="icon"
       type="image/svg+xml"
@@ -2523,6 +2524,9 @@ if (QUIERE_VIP) {
   document.querySelectorAll('.link-entrar').forEach(a => { a.href = '/entrar.html?siguiente=vip'; });
 }
 
+// Meta Pixel: vio la página de registro.
+window.jcfPixel && jcfPixel('ViewContent', { content_name: 'Registro', content_category: 'Registro gratis' });
+
 // --- Landing: botones "Registrarme gratis" y barra fija del celular -----------
 function irARegistro(){
   $('registro').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2574,6 +2578,8 @@ $('btnActivar').addEventListener('click', async () => {
     if (!resp.ok || data.error) throw new Error(data.error || 'No se pudo crear tu cuenta');
     const login = await apiAuth('login', 'POST', { email, password });
     localStorage.setItem('jcf_token', login.token);
+    // El panel/checkout dispara CompleteRegistration al llegar.
+    try { sessionStorage.setItem('jcf_registro_nuevo', 'correo'); } catch {}
     location.href = DESTINO;
   } catch (err) {
     msg.textContent = 'Error: ' + err.message;

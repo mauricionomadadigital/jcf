@@ -101,7 +101,8 @@ export default async (req) => {
     ],
     payer: { email },
     back_urls: {
-      success: `${SITE_URL}/checkout-vip.html?pago=exitoso`,
+      // monto: para el evento Purchase del Meta Pixel al regresar.
+      success: `${SITE_URL}/checkout-vip.html?pago=exitoso&monto=${precioFinal}`,
       failure: `${SITE_URL}/checkout-vip.html?pago=fallido`,
       pending: `${SITE_URL}/checkout-vip.html?pago=pendiente`
     },
