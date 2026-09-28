@@ -6,6 +6,7 @@
 
 import { guardarMensaje, avisarAdmin } from './lib/soporte.mjs';
 import { cargarFlujo } from './lib/flujo.mjs';
+import { CONSTRUCTORES, enviarEstacion, volcarEnvios } from './lib/flujo-mensajes.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -117,12 +118,11 @@ export default async (req) => {
     }
 
     await vincularChatId(suscriptor.id, chatId);
-    const vars = { municipio: suscriptor.municipio, estado: suscriptor.estado };
-    await enviarMensaje(
-      chatId,
-      flujo.texto('telegram_vinculado', 'texto', vars) +
-        (suscriptor.plan === 'vip' ? '\n\n' + flujo.texto('telegram_vinculado', 'extra_vip', vars) : '')
-    );
+    // Estación 2 del flujo: al chat recién vinculado (aunque tenga el
+    // canal de Telegram apagado, es la confirmación de su acción).
+    const vinculado = { ...suscriptor, telegram_chat_id: String(chatId) };
+    await enviarEstacion('telegram_vinculado', vinculado, CONSTRUCTORES.telegram_vinculado(flujo, vinculado), { forzar: true });
+    await volcarEnvios();
 
     return new Response('OK', { status: 200 });
 

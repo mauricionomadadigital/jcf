@@ -5,14 +5,14 @@
 // cerrado — para que el usuario sienta que el sistema está vivo,
 // sin inundarlo de alertas falsas cada 15 minutos.
 
-import { descargarCatalogo, estadoTexto, normalizar, enviarTelegram } from './lib/dtmlp.mjs';
+import { descargarCatalogo, estadoTexto, normalizar } from './lib/dtmlp.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
 import { getStore } from '@netlify/blobs';
 import { cargarFlujo } from './lib/flujo.mjs';
+import { CONSTRUCTORES, enviarEstacion, volcarEnvios } from './lib/flujo-mensajes.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 function headersSupabase() {
   return { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` };
@@ -79,14 +79,11 @@ export default async () => {
       // ese cambio ya lo cubrió (o lo cubrirá) check-jcf-nacional con su propia alerta.
       if (estadoActual !== 'Cerrado') continue;
 
-      const ok = await enviarTelegram(
-        TELEGRAM_BOT_TOKEN,
-        s.telegram_chat_id,
-        flujo.texto('seguimos_vigilando', 'texto', { municipio: s.municipio, estado: s.estado, hora })
-      );
-      if (ok) enviados++;
+      const r = await enviarEstacion('seguimos_vigilando', s, CONSTRUCTORES.seguimos_vigilando(flujo, s, { hora }));
+      if (r.telegram) enviados++;
     }
 
+    await volcarEnvios();
     await store.set('heartbeat_ultimo', new Date().toISOString());
     return new Response(JSON.stringify({ ok: true, revisados: suscriptores.length, enviados }));
   } catch (err) {

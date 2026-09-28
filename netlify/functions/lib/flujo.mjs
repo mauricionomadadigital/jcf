@@ -139,10 +139,14 @@ export const ESTACIONES = [
   },
   {
     clave: 'vencimiento_vip', num: 9, etapa: 'vip', icono: '⌛',
-    titulo: 'Vencimiento VIP', proximamente: true,
-    cuando: 'Pasan 14 días desde el pago: la cuenta vuelve a Gratis.',
+    titulo: 'Vencimiento VIP',
+    cuando: 'Pasan 14 días desde el pago: la cuenta vuelve a Gratis (sin llamada, revisión menos frecuente).',
     quien: 'El cliente cuyo VIP venció', canales: ['telegram', 'correo'], apagable: true,
-    variables: [], campos: []
+    variables: ['nombre', 'municipio', 'estado', 'precio', 'link_vip'],
+    campos: [
+      { clave: 'texto', etiqueta: 'Mensaje (Telegram y cuerpo del correo)', tipo: 'telegram', defecto: '⌛ Tu plan VIP terminó\n\nTus 14 días de VIP para {municipio}, {estado} ya concluyeron. Te seguimos avisando gratis por Telegram, pero sin llamada automática y con revisión menos frecuente.\n\n¿Quieres seguir con VIP? Renuévalo por {precio}: {link_vip}' },
+      { clave: 'asunto', etiqueta: 'Asunto del correo', tipo: 'asunto', defecto: 'Tu plan VIP terminó — renuévalo cuando quieras' }
+    ]
   },
   {
     clave: 'soporte', num: 10, etapa: 'soporte', icono: '💬',

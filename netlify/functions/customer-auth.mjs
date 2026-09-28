@@ -5,10 +5,11 @@
 
 import {
   verifyPassword, hashPassword, crearSesion, borrarSesion,
-  suscriptorDesdeToken, tokenDesdeRequest, generarTokenReset
+  suscriptorDesdeToken, tokenDesdeRequest
 } from './lib/auth.mjs';
 import { enviarCorreo } from './lib/email.mjs';
-import { cargarFlujo, textoAHtml } from './lib/flujo.mjs';
+import { cargarFlujo } from './lib/flujo.mjs';
+import { CONSTRUCTORES, enviarEstacion, volcarEnvios, prepararRecuperacion } from './lib/flujo-mensajes.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -102,25 +103,11 @@ export default async (req) => {
       // Respuesta idéntica exista o no la cuenta, para no filtrar qué
       // correos están registrados.
       if (suscriptor) {
-        const token = generarTokenReset();
-        const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
-        await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${suscriptor.id}`, {
-          method: 'PATCH',
-          headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-          body: JSON.stringify({ reset_token: token, reset_token_expires: expires })
-        });
-        const link = `${SITE_URL}/?reset=${token}`;
-        const flujo = await cargarFlujo(); // estación 12 (Admin > Flujo)
-        await enviarCorreo(
-          suscriptor.email,
-          flujo.texto('recuperar_password', 'asunto', {}),
-          `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:28px;background:#0a1220;color:#eef2f9;border-radius:14px;">
-             <h2 style="color:#34d399;">Monitor JCF</h2>
-             <p>${textoAHtml(flujo.texto('recuperar_password', 'parrafo', {}))}</p>
-             <p style="text-align:center;margin:22px 0;"><a href="${link}" style="background:#34d399;color:#06281c;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Elegir nueva contraseña</a></p>
-             <p style="color:#9aa7bd;font-size:12px;">Si no fuiste tú, ignora este correo.</p>
-           </div>`
-        );
+        // Estación 12 del flujo (Admin > Flujo).
+        const flujo = await cargarFlujo();
+        const extra = await prepararRecuperacion(suscriptor);
+        await enviarEstacion('recuperar_password', suscriptor, CONSTRUCTORES.recuperar_password(flujo, suscriptor, extra), { forzar: true });
+        await volcarEnvios();
       }
       return json({ ok: true, mensaje: 'Si el correo está registrado, enviamos un enlace de recuperación.' });
     }

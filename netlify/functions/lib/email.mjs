@@ -33,7 +33,7 @@ export async function enviarCorreo(to, subject, html) {
   if (!RESEND_API_KEY) {
     console.warn('RESEND_API_KEY no configurado');
     await registrarFallo({ tipo: 'correo', origen: 'enviarCorreo', detalle: `RESEND_API_KEY no configurado (destinatario: ${to})` });
-    return;
+    return false;
   }
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -47,7 +47,9 @@ export async function enviarCorreo(to, subject, html) {
     const err = await res.text();
     console.error('Error enviando email:', err);
     await registrarFallo({ tipo: 'correo', origen: 'enviarCorreo', detalle: `Para ${to} — asunto "${subject}": ${err}` });
+    return false;
   }
+  return true;
 }
 
 // intro / paso: textos editables del flujo (Admin > Flujo), ya con sus

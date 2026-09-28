@@ -1668,6 +1668,39 @@
       .fl-pie input { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; width: 200px; }
       .fl-prox { padding: 34px 20px; text-align: center; color: var(--muted); }
       .fl-prox strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; }
+      /* Flujo — fases 2 y 3: cantidades, disparo manual y contadores */
+      .fl-cont { margin-left: 4px; font-weight: 700; color: #7dd3fc; }
+      .fl-cont b { color: #fca5a5; }
+      .fl-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+      .fl-stat { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 3px 9px; background: #eef4ff; color: #29445f; }
+      .fl-stat b { font-weight: 900; }
+      .fl-stat.mal { background: #fdecec; color: #b42318; }
+      .fl-stat.vacio { background: transparent; color: var(--muted); padding-left: 0; }
+      .fl-rotulo { font-size: 12px; color: var(--muted); font-weight: 800; }
+      .fl-param { display: flex; align-items: center; gap: 9px; background: #fff8eb; border: 1px solid #ffe1a8; color: #8a5a00; border-radius: 12px; padding: 7px 10px; font-size: 13px; }
+      .fl-param small { color: #b08a3a; }
+      .fl-stepper { display: flex; align-items: center; border: 1px solid #f3cf87; border-radius: 10px; overflow: hidden; background: #fff; }
+      .fl-stepper button { border: 0; background: #fff3d6; color: #8a5a00; width: 30px; height: 32px; cursor: pointer; font-size: 11px; }
+      .fl-stepper button:hover { background: #ffe6ad; }
+      .fl-stepper input { width: 52px; height: 32px; border: 0; text-align: center; font: 800 15px/1 inherit; font-family: inherit; color: #5c3b00; -moz-appearance: textfield; }
+      .fl-stepper input::-webkit-outer-spin-button, .fl-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+      .fl-disparo { margin: 4px 20px 16px; border: 1px solid #d9e6ff; background: linear-gradient(160deg, #f5f9ff, #f3fbf8); border-radius: 16px; padding: 16px 18px; }
+      .fl-disparo h3 { margin: 0 0 4px; font-size: 16px; }
+      .fl-nota { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; }
+      .fl-nota.mal { color: #b42318; font-weight: 700; }
+      .fl-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
+      @media (max-width: 1000px) { .fl-ops { grid-template-columns: 1fr; } }
+      .fl-op { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; }
+      .fl-op > b { font-size: 13.5px; }
+      .fl-op p { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; line-height: 1.4; }
+      .fl-op-acc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .fl-op-acc .btn { padding: 8px 13px; font-size: 13px; }
+      .fl-op-acc input { flex: 1 1 200px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; }
+      .fl-dest { font-size: 12.5px; color: #29445f; margin-top: 9px; line-height: 1.45; }
+      .fl-hist { margin-top: 14px; }
+      .fl-hist > b { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+      .fl-hist-f { display: grid; grid-template-columns: 130px 1fr 1fr auto; gap: 10px; align-items: center; font-size: 12.5px; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+      @media (max-width: 800px) { .fl-hist-f { grid-template-columns: 1fr; gap: 3px; } }
       /* --- Banners de la página de registro --- */
       .banners-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
       @media (max-width: 1000px) { .banners-grid { grid-template-columns: 1fr; } }
@@ -2612,7 +2645,6 @@
                   <span><i class="fl-punto on"></i>Encendida</span>
                   <span><i class="fl-punto off"></i>Apagada</span>
                   <span><i class="fl-punto mod"></i>Personalizada (distinta a fábrica)</span>
-                  <span><i class="fl-punto prox"></i>Próximamente</span>
                 </div>
               </div>
               <button class="btn btn-outline" id="flRestaurarTodo" style="color:#c0491f;">↺ Restaurar TODO de fábrica</button>
@@ -3429,8 +3461,9 @@ $('btnGuardarPrecio').addEventListener('click', async () => {
 // se muestran y se editan. Todo texto se pinta escapado.
 let FL = null;          // respuesta de api('flujo')
 let FL_SEL = null;      // clave de la estación elegida
-let FL_BORRADOR = null; // { activo, textos } de la estación elegida, sin guardar
+let FL_BORRADOR = null; // { activo, textos, params } de la estación elegida, sin guardar
 let FL_ULTIMO_CAMPO = null;
+let FL_CLIENTES = null; // lista para "Disparar a un cliente" (se carga al usarla)
 const FL_ETAPAS = [
   { id: 'registro', t: 'Registro', sub: 'alta y Telegram' },
   { id: 'monitoreo', t: 'Monitoreo', sub: 'mientras sigue cerrado' },
@@ -3438,7 +3471,6 @@ const FL_ETAPAS = [
   { id: 'vip', t: 'VIP', sub: 'pago y vigencia' }
 ];
 const FL_CANAL = { telegram: '✈ Telegram', correo: '✉ Correo', llamada: '☎ Llamada' };
-function flRender(t, vars){ return String(t ?? '').replace(/\{(\w+)\}/g, (m, k) => vars[k] !== undefined ? vars[k] : m); }
 // Vista previa: escapa, marca en rojo las variables que ESTA estación no
 // tiene al enviar (saldrían tal cual) y vuelve clicables los links.
 function flPreviewHtml(t){
@@ -3450,15 +3482,16 @@ function flPreviewHtml(t){
 function flEstacion(clave){ return FL.estaciones.find(e => e.clave === clave); }
 function flPersonalizada(e){ return e.campos.some(c => c.personalizado) || e.params.some(p => p.personalizado) || (e.apagable && !e.activo); }
 function flPunto(e){
-  if (e.proximamente) return 'prox';
   if (!e.activo) return 'off';
   return flPersonalizada(e) ? 'mod' : 'on';
 }
+function flTotal7d(e){ return e.stats ? e.stats.telegram + e.stats.correo : 0; }
 function flNodo(e){
   const canales = e.canales.map(c => FL_CANAL[c].split(' ')[0]).join(' ');
+  const total = flTotal7d(e);
   return `<button class="fl-nodo ${FL_SEL === e.clave ? 'sel' : ''} ${!e.activo ? 'apagada' : ''}" data-fl="${e.clave}">
     <span class="fl-num">${e.num}</span><strong>${escHtml(e.icono)} ${escHtml(e.titulo)}</strong>
-    <span class="fl-meta">${canales}${e.proximamente ? ' · Fase 3' : ''}<i class="fl-punto ${flPunto(e)}"></i></span></button>`;
+    <span class="fl-meta">${canales}<span class="fl-cont" title="Enviados en los últimos 7 días">${total ? total + ' · 7d' : ''}${e.stats?.fallidos ? ` <b>⚠${e.stats.fallidos}</b>` : ''}</span><i class="fl-punto ${flPunto(e)}"></i></span></button>`;
 }
 function flPintarMapa(){
   const carril = FL_ETAPAS.map(et => `<div class="fl-etapa">
@@ -3473,6 +3506,7 @@ function flSucio(){
   const e = flEstacion(FL_SEL);
   if (!e || !FL_BORRADOR) return false;
   if (e.apagable && FL_BORRADOR.activo !== e.activo) return true;
+  if (e.params.some(p => FL_BORRADOR.params[p.clave] !== p.valor)) return true;
   return e.campos.some(c => FL_BORRADOR.textos[c.clave] !== c.valor);
 }
 function flActualizarPie(){
@@ -3483,9 +3517,12 @@ function flActualizarPie(){
   el.textContent = s ? '● Cambios sin guardar' : (e.actualizado ? `Guardado · ${fechaHora(e.actualizado)}` : 'Valores de fábrica');
   $('flGuardar').disabled = !s;
   $('flDescartar').disabled = !s;
+  // El disparo manda lo GUARDADO: con cambios pendientes se bloquea.
+  document.querySelectorAll('[data-fl-disparo]').forEach(b => { b.disabled = s || b.dataset.flBloqueado === '1'; });
+  const aviso = $('flAvisoDisparo'); if (aviso) aviso.classList.toggle('oculto', !s);
 }
 function flPintarVista(clave){
-  const e = flEstacion(FL_SEL); const c = e.campos.find(x => x.clave === clave);
+  const c = flEstacion(FL_SEL).campos.find(x => x.clave === clave);
   const v = FL_BORRADOR.textos[clave];
   const box = $(`flVista_${clave}`);
   if (c.tipo === 'telegram') box.innerHTML = `<div class="fl-tg"><div class="fl-burbuja">${flPreviewHtml(v)}</div></div>`;
@@ -3493,26 +3530,65 @@ function flPintarVista(clave){
   else box.innerHTML = `<div class="fl-mail"><div style="color:#34d399;font-weight:800;margin-bottom:6px;">🔔 Monitor JCF</div>${flPreviewHtml(v).replace(/\n/g, '<br>')}</div>`;
   $(`flCuenta_${clave}`).textContent = `${v.length} caracteres`;
 }
+function flHtmlStats(e){
+  const s = e.stats;
+  if (!s) return '<span class="fl-stat vacio">Sin envíos en los últimos 7 días</span>';
+  return `<span class="fl-stat">✈ <b>${s.telegram}</b> Telegram</span><span class="fl-stat">✉ <b>${s.correo}</b> correo</span>`
+    + (s.fallidos ? `<span class="fl-stat mal">⚠ <b>${s.fallidos}</b> fallidos</span>` : '')
+    + (s.manuales ? `<span class="fl-stat">✋ <b>${s.manuales}</b> manuales</span>` : '')
+    + `<span class="fl-stat vacio">último: ${fechaHora(s.ultimo)}</span>`;
+}
+function flHtmlParams(e){
+  if (!e.params.length) return '';
+  return `<div class="fl-params"><span class="fl-rotulo">CANTIDADES</span>${e.params.map(p => `
+      <div class="fl-param"><span>${escHtml(p.etiqueta)}</span>
+        <div class="fl-stepper"><button type="button" data-paso="-1" data-param="${p.clave}" aria-label="Menos">▼</button>
+          <input type="number" id="flParam_${p.clave}" data-param-input="${p.clave}" min="${p.min}" max="${p.max}" value="${FL_BORRADOR.params[p.clave]}" />
+          <button type="button" data-paso="1" data-param="${p.clave}" aria-label="Más">▲</button></div>
+        <span>${escHtml(p.unidad)} <small>(${p.min}–${p.max}${p.personalizado ? '' : ', fábrica'})</small></span></div>`).join('')}</div>`;
+}
+function flHtmlDisparo(e){
+  const d = e.disparo || {};
+  if (d.no) return `<div class="fl-disparo"><h3>⚡ Disparar ahora</h3><p class="fl-nota">${escHtml(d.no)}</p></div>`;
+  const todos = d.todos ? `<div class="fl-op"><b>A todos los de esta estación</b><p>${escHtml(d.todos)}</p>
+      <div class="fl-op-acc"><button class="btn btn-outline" data-fl-disparo="calcular">Calcular destinatarios</button>
+        <button class="btn btn-primary" data-fl-disparo="todos" data-fl-bloqueado="1" id="flEnviarTodos">Enviar a todos</button></div>
+      <div id="flDestinatarios" class="fl-dest"></div></div>` : '';
+  const uno = `<div class="fl-op"><b>A un cliente</b><p>${escHtml(d.soloUno || 'Elige al cliente; le llega aunque no esté en esta estación (si tiene el canal).')}</p>
+      <div class="fl-op-acc"><input id="flCliente" list="flClientesLista" placeholder="Escribe su correo o nombre…" autocomplete="off" />
+        <datalist id="flClientesLista"></datalist>
+        <button class="btn btn-primary" data-fl-disparo="uno">Enviar</button></div></div>`;
+  return `<div class="fl-disparo"><h3>⚡ Disparar ahora</h3>
+      <p class="fl-nota">Se envía el mensaje <b>guardado</b>, igual que el automático${e.canales.includes('llamada') ? ' (sin la llamada automática)' : ''}.</p>
+      <p class="fl-nota mal oculto" id="flAvisoDisparo">Guarda o descarta tus cambios antes de disparar.</p>
+      <div class="fl-ops">${todos}${uno}</div>
+      <div class="fl-hist"><b>Últimos disparos</b><div id="flHistorial"><span class="fl-nota">Cargando…</span></div></div></div>`;
+}
+async function flCargarHistorial(){
+  const box = $('flHistorial'); if (!box) return [];
+  try {
+    const { disparos } = await api(`flujo-disparos&clave=${encodeURIComponent(FL_SEL)}`);
+    box.innerHTML = disparos.map(d => `<div class="fl-hist-f"><span>${fechaHora(d.created_at)}</span>
+        <span>${d.alcance === 'todos' ? 'A todos' : 'A ' + escHtml(d.detalle || 'un cliente')}</span>
+        <span>${d.enviados} / ${d.destinatarios} enviados${d.fallidos ? ` · <b style="color:#b42318;">${d.fallidos} fallidos</b>` : ''}</span>
+        <span class="status-pill ${d.estado === 'terminado' ? 'open' : d.estado === 'error' ? 'error' : 'goal'}">${d.estado === 'terminado' ? 'Terminado' : d.estado === 'error' ? 'Error' : 'Enviando…'}</span></div>`).join('')
+      || '<span class="fl-nota">Todavía no has disparado esta estación.</span>';
+    return disparos;
+  } catch { box.innerHTML = '<span class="fl-nota">No se pudo leer el historial (¿ya corriste sql/010?).</span>'; return []; }
+}
 function flPintarDetalle(){
   const e = flEstacion(FL_SEL);
   const d = $('flDetalle');
   if (!e) { d.innerHTML = ''; return; }
   const cab = `<div class="fl-cab"><div class="fl-icono">${escHtml(e.icono)}</div>
-      <div><small>Estación ${e.num} · ${escHtml(FL_ETAPAS.find(x => x.id === e.etapa)?.t || 'En cualquier momento')}</small><h2>${escHtml(e.titulo)}</h2></div>
-      <div class="fl-switch">${e.proximamente ? '<span class="fl-siempre" style="background:#f0ecff;color:#5b3fd1;">Próximamente · Fase 3</span>'
-        : e.apagable ? `<span id="flSwitchTxt">${FL_BORRADOR.activo ? 'Encendida' : 'Apagada'}</span><button class="toggle ${FL_BORRADOR.activo ? 'on' : ''}" id="flSwitch" aria-label="Encender o apagar"></button>`
+      <div><small>Estación ${e.num} · ${escHtml(FL_ETAPAS.find(x => x.id === e.etapa)?.t || 'En cualquier momento')}</small><h2>${escHtml(e.titulo)}</h2>
+        <div class="fl-stats">${flHtmlStats(e)}</div></div>
+      <div class="fl-switch">${e.apagable ? `<span id="flSwitchTxt">${FL_BORRADOR.activo ? 'Encendida' : 'Apagada'}</span><button class="toggle ${FL_BORRADOR.activo ? 'on' : ''}" id="flSwitch" aria-label="Encender o apagar"></button>`
         : '<span class="fl-siempre" title="Mensaje esencial: sin él el flujo se rompe">Siempre activa</span>'}</div></div>`;
   const info = `<div class="fl-info">
       <div><b>Cuándo se dispara</b><p>${escHtml(e.cuando)}</p></div>
       <div><b>A quién le llega</b><p>${escHtml(e.quien)}</p></div>
       <div><b>Canales</b><p>${e.canales.map(c => `<span class="fl-canal ${c}">${FL_CANAL[c]}</span>`).join('')}</p></div></div>`;
-  if (e.proximamente) {
-    d.innerHTML = cab + info + `<div class="fl-prox"><strong>Aviso de vencimiento VIP</strong>Hoy la cuenta vuelve a Gratis en silencio. En la Fase 3 aquí podrás editar el aviso con la invitación a renovar.</div>`;
-    return;
-  }
-  const params = e.params.length ? `<div class="fl-params"><span style="font-size:12px;color:var(--muted);font-weight:700;">CANTIDADES</span>${e.params.map(p =>
-      `<span class="fl-param">${escHtml(p.etiqueta)} <strong>${p.valor}</strong> ${escHtml(p.unidad)}</span>`).join('')}
-      <span style="font-size:12px;color:var(--muted);">Ajustables con ▲▼ en la Fase 2.</span></div>` : '';
   const vars = e.variables.length ? `<div class="fl-vars"><span>Insertar variable:</span>${e.variables.map(v =>
       `<button type="button" data-var="${v}" title="${escHtml(FL.variables[v] || '')}">{${v}}</button>`).join('')}</div>` : '';
   const campos = `<div class="fl-campos">${e.campos.map(c => `<div class="fl-campo">
@@ -3530,25 +3606,29 @@ function flPintarDetalle(){
       ${correoPrueba}
       <button class="btn btn-secondary" id="flProbar" title="Te lo manda solo a ti, con datos de ejemplo (aunque no lo hayas guardado)">🧪 Enviarme prueba</button>
       <button class="btn btn-primary" id="flGuardar">Guardar cambios</button></div>`;
-  d.innerHTML = cab + info + params + vars + campos + pie;
+  d.innerHTML = cab + info + flHtmlParams(e) + vars + campos + flHtmlDisparo(e) + pie;
   for (const c of e.campos) { $(`flCampo_${c.clave}`).value = FL_BORRADOR.textos[c.clave]; flPintarVista(c.clave); }
   if ($('flCorreoPrueba')) {
     let guardado = ''; try { guardado = localStorage.getItem('jcf_admin_correo_prueba') || ''; } catch {}
     $('flCorreoPrueba').value = guardado || FL.admin.correo;
   }
   flActualizarPie();
+  flCargarHistorial();
 }
 function flElegir(clave){
   const e = flEstacion(clave); if (!e) return;
   if (FL_SEL && FL_SEL !== clave && flSucio() && !confirm('Tienes cambios sin guardar en esta estación. ¿Descartarlos?')) return;
   FL_SEL = clave;
-  FL_BORRADOR = { activo: e.activo, textos: Object.fromEntries(e.campos.map(c => [c.clave, c.valor])) };
+  FL_BORRADOR = {
+    activo: e.activo,
+    textos: Object.fromEntries(e.campos.map(c => [c.clave, c.valor])),
+    params: Object.fromEntries(e.params.map(p => [p.clave, p.valor]))
+  };
   FL_ULTIMO_CAMPO = e.campos[0]?.clave || null;
   flPintarMapa(); flPintarDetalle();
 }
 async function cargarFlujo(){
-  const r = await api('flujo');
-  FL = r;
+  FL = await api('flujo');
   flElegir(FL_SEL && flEstacion(FL_SEL) ? FL_SEL : FL.estaciones[0].clave);
 }
 function flTrasGuardar(r, aviso){
@@ -3556,13 +3636,35 @@ function flTrasGuardar(r, aviso){
   const clave = FL_SEL; FL_SEL = null; flElegir(clave);
   notify(aviso);
 }
+function flFijarParam(clave, valor){
+  const p = flEstacion(FL_SEL).params.find(x => x.clave === clave);
+  const n = Math.min(p.max, Math.max(p.min, Math.round(Number(valor) || p.min)));
+  FL_BORRADOR.params[clave] = n;
+  $(`flParam_${clave}`).value = n;
+  flActualizarPie();
+}
+async function flClientes(){
+  if (FL_CLIENTES) return FL_CLIENTES;
+  const { suscriptores } = await api('suscriptores');
+  FL_CLIENTES = suscriptores.filter(s => s.activo);
+  return FL_CLIENTES;
+}
 $('flMapa').addEventListener('click', e => { const b = e.target.closest('[data-fl]'); if (b) { flElegir(b.dataset.fl); $('flDetalle').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
 $('flDetalle').addEventListener('input', e => {
+  if (e.target.dataset?.paramInput) { flFijarParam(e.target.dataset.paramInput, e.target.value); return; }
   const campo = e.target.dataset?.campo; if (!campo) return;
   FL_BORRADOR.textos[campo] = e.target.value; FL_ULTIMO_CAMPO = campo;
   flPintarVista(campo); flActualizarPie();
 });
-$('flDetalle').addEventListener('focusin', e => { if (e.target.dataset?.campo) FL_ULTIMO_CAMPO = e.target.dataset.campo; });
+$('flDetalle').addEventListener('focusin', async e => {
+  if (e.target.dataset?.campo) FL_ULTIMO_CAMPO = e.target.dataset.campo;
+  if (e.target.id === 'flCliente' && !$('flClientesLista').children.length) {
+    try {
+      const lista = await flClientes();
+      $('flClientesLista').innerHTML = lista.map(s => `<option value="${escHtml(s.email)}">${escHtml((s.nombre || '') + ' · ' + (s.plan === 'vip' ? 'VIP' : 'Gratis') + ' · ' + s.municipio)}</option>`).join('');
+    } catch (err) { notify('Error: ' + err.message); }
+  }
+});
 $('flDetalle').addEventListener('click', async e => {
   const t = e.target.closest('button'); if (!t) return;
   const est = flEstacion(FL_SEL);
@@ -3574,6 +3676,7 @@ $('flDetalle').addEventListener('click', async e => {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     return;
   }
+  if (t.dataset.paso) { flFijarParam(t.dataset.param, FL_BORRADOR.params[t.dataset.param] + Number(t.dataset.paso)); return; }
   if (t.id === 'flSwitch') {
     FL_BORRADOR.activo = !FL_BORRADOR.activo;
     t.classList.toggle('on', FL_BORRADOR.activo); $('flSwitchTxt').textContent = FL_BORRADOR.activo ? 'Encendida' : 'Apagada';
@@ -3583,7 +3686,7 @@ $('flDetalle').addEventListener('click', async e => {
   if (t.id === 'flGuardar') {
     if (!FL_BORRADOR.activo && est.apagable && est.activo && !confirm(`Vas a APAGAR "${est.titulo}": ningún cliente lo recibirá hasta que lo vuelvas a encender. ¿Continuar?`)) return;
     t.disabled = true;
-    try { flTrasGuardar(await api('flujo-guardar', 'POST', { clave: FL_SEL, activo: FL_BORRADOR.activo, textos: FL_BORRADOR.textos }), 'Estación guardada — aplica desde el próximo envío.'); }
+    try { flTrasGuardar(await api('flujo-guardar', 'POST', { clave: FL_SEL, activo: FL_BORRADOR.activo, textos: FL_BORRADOR.textos, params: FL_BORRADOR.params }), 'Estación guardada — aplica desde el próximo envío.'); }
     catch (err) { notify('Error: ' + err.message); t.disabled = false; }
     return;
   }
@@ -3605,6 +3708,61 @@ $('flDetalle').addEventListener('click', async e => {
       notify('Prueba — ' + partes.join(' · '));
     } catch (err) { notify('Error: ' + err.message); }
     finally { t.disabled = false; t.textContent = '🧪 Enviarme prueba'; }
+    return;
+  }
+  // --- Disparar ahora ---
+  if (t.dataset.flDisparo === 'calcular') {
+    const box = $('flDestinatarios'); box.innerHTML = '<span class="fl-nota">Calculando…</span>'; t.disabled = true;
+    try {
+      const r = await api(`flujo-destinatarios&clave=${encodeURIComponent(FL_SEL)}`);
+      const envT = $('flEnviarTodos');
+      envT.dataset.flBloqueado = r.total ? '0' : '1'; envT.dataset.total = r.total;
+      envT.textContent = r.total ? `Enviar a ${r.total} cliente${r.total === 1 ? '' : 's'}` : 'Enviar a todos';
+      box.innerHTML = r.total
+        ? `<b>${r.total} destinatario${r.total === 1 ? '' : 's'}</b>: ${r.muestra.map(s => escHtml(s.nombre || s.email)).join(', ')}${r.total > r.muestra.length ? ` y ${r.total - r.muestra.length} más` : ''}`
+        : '<span class="fl-nota">Ahora mismo no hay clientes en esta estación.</span>';
+      flActualizarPie();
+    } catch (err) { box.innerHTML = `<span class="fl-nota mal">${escHtml(err.message)}</span>`; }
+    finally { t.disabled = flSucio(); }
+    return;
+  }
+  if (t.dataset.flDisparo === 'todos') {
+    const n = Number(t.dataset.total || 0); if (!n) return;
+    if (!confirm(`¿Enviar "${est.titulo}" AHORA a ${n} cliente(s)? No se puede deshacer.`)) return;
+    t.disabled = true; t.dataset.flBloqueado = '1';
+    try {
+      // Background Function: responde 202 y sigue enviando en segundo plano.
+      const resp = await fetch('/.netlify/functions/flujo-disparo-background', {
+        method: 'POST', headers: { 'x-admin-password': PASS, 'Content-Type': 'application/json' }, body: JSON.stringify({ clave: FL_SEL })
+      });
+      if (resp.status !== 202 && !resp.ok) throw new Error('HTTP ' + resp.status);
+      notify(`Enviando a ${n} cliente(s)… el avance aparece en "Últimos disparos".`);
+      for (let i = 0; i < 8; i++) {
+        await new Promise(r => setTimeout(r, 2500));
+        const ds = await flCargarHistorial();
+        if (ds[0] && ds[0].alcance === 'todos' && ds[0].estado !== 'enviando') break;
+      }
+    } catch (err) { notify('Error: ' + err.message); }
+    return;
+  }
+  if (t.dataset.flDisparo === 'uno') {
+    const correo = $('flCliente').value.trim().toLowerCase();
+    if (!correo) { notify('Escribe el correo del cliente.'); return; }
+    const lista = await flClientes();
+    const s = lista.find(x => x.email.toLowerCase() === correo);
+    if (!s) { notify('No encontré un cliente activo con ese correo.'); return; }
+    if (!confirm(`¿Enviar "${est.titulo}" a ${s.email} ahora?`)) return;
+    t.disabled = true;
+    try {
+      const { resultado } = await api('flujo-disparar-uno', 'POST', { clave: FL_SEL, suscriptor_id: s.id });
+      const partes = [];
+      if (resultado.telegram !== null) partes.push('Telegram ' + (resultado.telegram ? '✓' : '✗'));
+      if (resultado.correo !== null) partes.push('correo ' + (resultado.correo ? '✓' : '✗'));
+      notify(`Enviado a ${resultado.email}: ${partes.join(' · ')}`);
+      $('flCliente').value = '';
+      flCargarHistorial();
+    } catch (err) { notify('Error: ' + err.message); }
+    finally { t.disabled = flSucio(); }
   }
 });
 $('flRestaurarTodo').addEventListener('click', async () => {

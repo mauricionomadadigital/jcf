@@ -6,12 +6,11 @@
 // el panel a /checkout-vip.html, que no vuelve a pedir datos.
 
 import { hashPassword, generarCodigoReferido } from './auth.mjs';
-import { enviarCorreo, plantillaBienvenida } from './email.mjs';
 import { cargarFlujo } from './flujo.mjs';
+import { CONSTRUCTORES, enviarEstacion, volcarEnvios } from './flujo-mensajes.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const TELEGRAM_BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME;
 
 function headersSupabase(extra = {}) {
   return {
@@ -102,40 +101,12 @@ export async function altaFree({ email, estado, municipio, password, referredBy,
     [suscriptor] = await res.json();
   }
 
-  // Estación 1 del flujo (Admin > Flujo): asunto y textos editables.
+  // Estación 1 del flujo (Admin > Flujo): mismo constructor que usa el
+  // "Disparar ahora" manual. Correo transaccional: sale aunque el cliente
+  // haya apagado el canal de correo.
   const flujo = await cargarFlujo();
-  const vars = { nombre: suscriptor.nombre || nombre || '', municipio, estado };
-  const asunto = flujo.texto('bienvenida_gratis', 'asunto', vars);
-
-  if (suscriptor.telegram_chat_id) {
-    // Ya estaba vinculado desde antes — no hace falta pedirle que vuelva
-    // a dar clic en ningún link de Telegram.
-    await enviarCorreo(
-      email,
-      asunto,
-      `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:32px;background:#0a1220;color:#eef2f9;border-radius:16px;">
-        <h1 style="color:#34d399;margin-bottom:8px;">🔔 Monitor JCF</h1>
-        <p style="color:#9aa7bd;">¡Listo! Tu cuenta quedó activa de nuevo — tu Telegram ya está vinculado, no hace falta hacer nada más.</p>
-        <div style="background:#101c30;border-radius:12px;padding:20px;margin:20px 0;border:1px solid rgba(52,211,153,0.25);">
-          <p style="margin:0;color:#9aa7bd;font-size:13px;">Municipio</p>
-          <p style="margin:0 0 10px;font-size:18px;font-weight:600;">${municipio}</p>
-          <p style="margin:0;color:#9aa7bd;font-size:13px;">Estado</p>
-          <p style="margin:0;font-size:16px;">${estado}</p>
-        </div>
-      </div>`
-    );
-  } else {
-    const telegramLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${suscriptor.telegram_token}`;
-    await enviarCorreo(
-      email,
-      asunto,
-      plantillaBienvenida({
-        plan: 'free', municipio, estado, telegramLink,
-        intro: flujo.texto('bienvenida_gratis', 'intro', vars),
-        paso: flujo.texto('bienvenida_gratis', 'paso', vars)
-      })
-    );
-  }
+  await enviarEstacion('bienvenida_gratis', suscriptor, CONSTRUCTORES.bienvenida_gratis(flujo, suscriptor), { forzar: true });
+  await volcarEnvios();
 
   return suscriptor;
 }

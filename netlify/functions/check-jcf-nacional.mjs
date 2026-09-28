@@ -16,17 +16,15 @@
 //   por defecto) — eso es lo que en verdad vale el pago, no el canal.
 
 import { getStore } from '@netlify/blobs';
-import { descargarCatalogo, estadoTexto, normalizar, enviarTelegram } from './lib/dtmlp.mjs';
-import { cargarFlujo, textoAHtml } from './lib/flujo.mjs';
-
-const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
-import { enviarCorreo } from './lib/email.mjs';
+import { descargarCatalogo, estadoTexto, normalizar } from './lib/dtmlp.mjs';
+import { cargarFlujo } from './lib/flujo.mjs';
+import { CONSTRUCTORES, enviarEstacion, volcarEnvios } from './lib/flujo-mensajes.mjs';
+import { precioVip, formatoMxn } from './lib/precio.mjs';
 import { llamarTalkyria } from './lib/talkyria.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 const DEFAULT_VIP_MIN = 10;
 const DEFAULT_FREE_MIN = 120;
@@ -127,8 +125,7 @@ async function degradarVipVencidos() {
     }
   );
   if (!res.ok) throw new Error('Error degradando VIP vencidos: ' + (await res.text()));
-  const degradados = await res.json();
-  return degradados.length;
+  return res.json();
 }
 
 // --- Revisión por plan, cada uno con su propia cadencia y snapshot --------
@@ -141,7 +138,7 @@ function yaLeToca(ultimaRevisionIso, frecuenciaMin) {
 
 async function leerSuscriptoresActivosDePlan(plan) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true&plan=eq.${plan}&select=id,email,estado,municipio,telegram_chat_id,phone,telefono_prefijo,call_enabled,email_enabled,telegram_enabled`,
+    `${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true&plan=eq.${plan}&select=id,email,estado,municipio,plan,telegram_chat_id,phone,telefono_prefijo,call_enabled,email_enabled,telegram_enabled`,
     { headers: headersSupabase() }
   );
   if (!res.ok) throw new Error('No se pudieron leer los suscriptores: ' + (await res.text()));
@@ -219,7 +216,6 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
   const MAX_RECORDATORIOS = flujo.param('recordatorio_vip', 'maximo');
   const VENTANA_MS = flujo.param('recordatorio_vip', 'ventana_min') * 60 * 1000;
   const ESPACIADO_MS = flujo.param('recordatorio_vip', 'espaciado_min') * 60 * 1000;
-  const lineaSoporte = '\n\n' + flujo.texto('apertura', 'extra_vip', { link_soporte: `${SITE_URL}/panel.html#soporte` });
   const refuerzos = plan === 'vip' ? ((await store.get(claveRefuerzos, { type: 'json' })) || {}) : {};
 
   let alertasEnviadas = 0;
@@ -238,32 +234,16 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
     const destinatarios = suscriptores.filter(s => normalizar(s.estado) + '|' + normalizar(s.municipio) === cambio.clave);
 
     const esApertura = cambio.estadoNuevo === 'Abierto';
-    const vars = { municipio: cambio.municipio, estado: estadoNombreReal, estado_nuevo: cambio.estadoNuevo };
+    const datos = { municipio: cambio.municipio, estado: estadoNombreReal, estadoNuevo: cambio.estadoNuevo };
     for (const s of destinatarios) {
-      const textoTelegram = esApertura
-        ? flujo.texto('apertura', 'texto', vars)
-        : flujo.texto('cambio_estado', 'texto', vars);
-      // El aviso de apertura nunca se apaga; el de cambio de estado sí.
-      const enviarTg = esApertura || flujo.activo('cambio_estado');
-
-      if (enviarTg && s.telegram_enabled !== false && s.telegram_chat_id) {
-        // A VIP se le agrega el acceso a soporte directo.
-        const ok = await enviarTelegram(TELEGRAM_BOT_TOKEN, s.telegram_chat_id, textoTelegram + (plan === 'vip' ? lineaSoporte : ''));
-        if (ok) alertasEnviadas++;
-      }
-
-      // Correo: para AMBOS planes, solo en la apertura (no en "meta
-      // alcanzada" — no hay nada urgente que decir ahí).
-      if (cambio.estadoNuevo === 'Abierto' && s.email_enabled !== false && s.email) {
-        await enviarCorreo(
-          s.email,
-          flujo.texto('apertura', 'asunto', vars),
-          `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:26px;background:#0a1220;color:#eef2f9;border-radius:14px;">
-            <h2 style="color:#34d399;">¡${cambio.municipio} está abierto!</h2>
-            <p>${textoAHtml(flujo.texto('apertura', 'correo', vars))}</p>
-            <p style="text-align:center;margin:20px 0;"><a href="https://jovenesconstruyendoelfuturo.stps.gob.mx/" style="background:#34d399;color:#06281c;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Ir a la plataforma oficial</a></p>
-          </div>`
-        );
+      // Apertura: Telegram + correo, nunca se apaga. Cambio de estado (p. ej.
+      // Meta alcanzada): solo Telegram, y se puede apagar en Admin > Flujo.
+      if (esApertura) {
+        const r = await enviarEstacion('apertura', s, CONSTRUCTORES.apertura(flujo, s, datos));
+        if (r.telegram) alertasEnviadas++;
+      } else if (flujo.activo('cambio_estado')) {
+        const r = await enviarEstacion('cambio_estado', s, CONSTRUCTORES.cambio_estado(flujo, s, datos));
+        if (r.telegram) alertasEnviadas++;
       }
 
       // Llamada: exclusiva VIP, y por ahora solo para números de México
@@ -315,17 +295,15 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
       const municipioNombreReal = destinatarios[0].municipio;
 
       for (const s of destinatarios) {
-        const ok = await enviarTelegram(
-          TELEGRAM_BOT_TOKEN, s.telegram_chat_id,
-          flujo.texto('recordatorio_vip', 'texto', { n: r.count + 1, total: MAX_RECORDATORIOS, municipio: municipioNombreReal, estado: estadoNombreReal }) + lineaSoporte
-        );
-        if (ok) alertasEnviadas++;
+        const env = await enviarEstacion('recordatorio_vip', s, CONSTRUCTORES.recordatorio_vip(flujo, s, { n: r.count + 1, total: MAX_RECORDATORIOS, municipio: municipioNombreReal, estado: estadoNombreReal }));
+        if (env.telegram) alertasEnviadas++;
       }
       refuerzos[clave] = { ...r, ultimo: ahora, count: r.count + 1 };
     }
     await store.setJSON(claveRefuerzos, refuerzos);
   }
 
+  await volcarEnvios();
   await store.set(claveUltima, new Date().toISOString());
 
   return {
@@ -357,7 +335,19 @@ async function ejecutarRevisionNacional() {
     return { ok: true, activo: false, motivo: 'Fuera del periodo de monitoreo global — no se procesó nada.' };
   }
 
-  const vipDegradados = await degradarVipVencidos();
+  const degradados = await degradarVipVencidos();
+  const vipDegradados = degradados.length;
+  // Estación 9 del flujo: aviso de vencimiento con invitación a renovar.
+  if (degradados.length) {
+    const flujoV = await cargarFlujo();
+    if (flujoV.activo('vencimiento_vip')) {
+      const precioTxt = formatoMxn((await precioVip()).vip_precio);
+      for (const s of degradados) {
+        await enviarEstacion('vencimiento_vip', s, CONSTRUCTORES.vencimiento_vip(flujoV, s, { precioTxt }));
+      }
+      await volcarEnvios();
+    }
+  }
 
   const frecVip = config.vip_frecuencia_min || DEFAULT_VIP_MIN;
   const frecFree = config.free_frecuencia_min || DEFAULT_FREE_MIN;

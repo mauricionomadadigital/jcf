@@ -7,6 +7,7 @@
 import { ESTACIONES, POR_CLAVE, EJEMPLO, VARIABLES, MAX_TEXTO, render, textoAHtml, cargarFlujo } from './flujo.mjs';
 import { enviarCorreo, plantillaBienvenida, plantillaUpgradeVinculado } from './email.mjs';
 import { enviarTelegramTexto } from './soporte.mjs';
+import { DISPAROS, SIN_DISPARO, estadisticas } from './flujo-disparo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -16,7 +17,7 @@ export const ADMIN_EMAIL_DEFECTO = process.env.ADMIN_EMAIL || 'maurixcasas@gmail
 const headers = (extra = {}) => ({ apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, ...extra });
 
 export async function estadoFlujo() {
-  const f = await cargarFlujo();
+  const [f, stats] = await Promise.all([cargarFlujo(), estadisticas()]);
   return {
     variables: VARIABLES,
     ejemplo: EJEMPLO,
@@ -27,6 +28,9 @@ export async function estadoFlujo() {
         ...e,
         activo: f.activo(e.clave),
         actualizado: ov.updated_at || null,
+        // Fase 2: qué permite "Disparar ahora". Fase 3: envíos de los últimos 7 días.
+        disparo: DISPAROS[e.clave] ? { todos: DISPAROS[e.clave].todos || null, soloUno: DISPAROS[e.clave].soloUno || null } : { no: SIN_DISPARO[e.clave] || 'No aplica.' },
+        stats: stats[e.clave] || null,
         campos: e.campos.map(c => {
           const guardado = ov.textos?.[c.clave];
           const personalizado = typeof guardado === 'string' && guardado.trim() !== '' && guardado !== c.defecto;

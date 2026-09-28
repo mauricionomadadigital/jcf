@@ -7,6 +7,7 @@ import { guardarMensaje, hiloDe, enviarTelegramTexto } from './lib/soporte.mjs';
 import { validarBase64Imagen, TOTAL_BANNERS, MAX_BYTES_BANNER } from './lib/banners.mjs';
 import { cargarFlujo } from './lib/flujo.mjs';
 import { estadoFlujo, guardarEstacion, restaurarEstacion, probarEstacion } from './lib/flujo-admin.mjs';
+import { destinatarios as destinatariosFlujo, dispararUno, historialDisparos } from './lib/flujo-disparo.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -281,6 +282,20 @@ export default async (req) => {
       if (!clave && !todo) return json({ error: 'Indica la estación o todo.' }, 400);
       await restaurarEstacion(todo ? null : clave);
       return json({ ok: true, ...(await estadoFlujo()) });
+    }
+    if (req.method === 'GET' && action === 'flujo-destinatarios') {
+      try {
+        const r = await destinatariosFlujo(url.searchParams.get('clave'));
+        return json({ ok: true, aplica: r.aplica, soloUno: r.soloUno || false, total: r.total, muestra: r.lista.slice(0, 8).map(s => ({ id: s.id, email: s.email, nombre: s.nombre || '' })) });
+      } catch (err) { return json({ error: err.message }, 400); }
+    }
+    if (req.method === 'POST' && action === 'flujo-disparar-uno') {
+      const { clave, suscriptor_id } = await req.json();
+      try { return json({ ok: true, resultado: await dispararUno(clave, suscriptor_id) }); }
+      catch (err) { return json({ error: err.message }, 400); }
+    }
+    if (req.method === 'GET' && action === 'flujo-disparos') {
+      return json({ ok: true, disparos: await historialDisparos(url.searchParams.get('clave')) });
     }
     if (req.method === 'POST' && action === 'flujo-probar') {
       try { return json({ ok: true, resultado: await probarEstacion(await req.json()) }); }

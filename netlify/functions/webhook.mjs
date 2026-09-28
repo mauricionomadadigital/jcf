@@ -4,14 +4,13 @@
 // código de referido y le manda el link de Telegram por correo.
 
 import { generarCodigoReferido } from './lib/auth.mjs';
-import { enviarCorreo, plantillaBienvenida, plantillaUpgradeVinculado } from './lib/email.mjs';
 import { enviarCompraMeta } from './lib/meta-capi.mjs';
 import { cargarFlujo } from './lib/flujo.mjs';
+import { CONSTRUCTORES, enviarEstacion, volcarEnvios } from './lib/flujo-mensajes.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const TELEGRAM_BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME;
 
 function headersSupabase(extra = {}) {
   return {
@@ -181,23 +180,10 @@ async function processPayment(paymentId) {
     monto: payment.transaction_amount
   });
 
-  // Estación 8 del flujo (Admin > Flujo): asuntos y textos editables.
+  // Estación 8 del flujo (Admin > Flujo). Correo transaccional (forzar).
   const flujo = await cargarFlujo();
-  const vars = { nombre: suscriptor.nombre || meta.nombre || '', municipio, estado };
-  if (yaVinculado) {
-    await enviarCorreo(
-      email,
-      flujo.texto('pago_aprobado', 'asunto_vinculado', vars),
-      plantillaUpgradeVinculado({ municipio, estado, intro: flujo.texto('pago_aprobado', 'intro_vinculado', vars) })
-    );
-  } else {
-    const telegramLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${suscriptor.telegram_token}`;
-    await enviarCorreo(
-      email,
-      flujo.texto('pago_aprobado', 'asunto_nuevo', vars),
-      plantillaBienvenida({ plan: 'vip', municipio, estado, telegramLink, intro: flujo.texto('pago_aprobado', 'intro_nuevo', vars) })
-    );
-  }
+  await enviarEstacion('pago_aprobado', suscriptor, CONSTRUCTORES.pago_aprobado(flujo, suscriptor), { forzar: true });
+  await volcarEnvios();
 
   // API de Conversiones de Meta: la compra cuenta aunque el cliente no
   // regrese a la página (OXXO/SPEI) — mismo event_id que el pixel.
