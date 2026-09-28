@@ -54,6 +54,51 @@ export async function enviarCorreo(to, subject, html) {
 
 // intro / paso: textos editables del flujo (Admin > Flujo), ya con sus
 // variables reemplazadas. Sin ellos se usan los de siempre.
+// --- Correos masivos (Admin > Mensajes > por correo) --------------------------
+// Texto libre del admin -> HTML con el diseño de siempre, links clicables y
+// un pie para apagar los correos desde el panel (no el link de baja, que
+// borra la cuenta completa).
+export function plantillaAviso({ texto }) {
+  const cuerpo = textoAHtml(texto).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#34d399;">$1</a>');
+  return `
+    <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:30px;background:#0a1220;color:#eef2f9;border-radius:16px;">
+      <h1 style="color:#34d399;margin:0 0 12px;">🔔 Monitor JCF</h1>
+      <p style="color:#dbe4f0;line-height:1.6;">${cuerpo}</p>
+      <p style="color:#6b7a90;font-size:11.5px;margin-top:26px;border-top:1px solid #1d2a3f;padding-top:12px;">
+        Recibes este correo porque tienes una cuenta en Monitor JCF. Puedes apagar los correos desde
+        <a href="${SITE_URL}/panel.html" style="color:#6b7a90;">tu panel</a> (Canales de aviso).
+      </p>
+    </div>`;
+}
+
+// Envío por lotes con la API batch de Resend (hasta 100 por petición;
+// su límite es ~2 peticiones/seg). correos: [{ to, subject, html }].
+// Devuelve cuántos se aceptaron y cuántos fallaron.
+export async function enviarCorreosLote(correos) {
+  let enviados = 0, fallidos = 0;
+  if (!RESEND_API_KEY) return { enviados, fallidos: correos.length };
+  for (let i = 0; i < correos.length; i += 100) {
+    const lote = correos.slice(i, i + 100).map(c => ({ from: FROM, to: c.to, subject: c.subject, html: c.html, text: htmlATexto(c.html), reply_to: REPLY_TO }));
+    try {
+      const res = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(lote)
+      });
+      if (res.ok) enviados += lote.length;
+      else {
+        fallidos += lote.length;
+        await registrarFallo({ tipo: 'correo', origen: 'enviarCorreosLote', detalle: `Lote de ${lote.length}: ${(await res.text()).slice(0, 500)}` });
+      }
+    } catch (err) {
+      fallidos += lote.length;
+      await registrarFallo({ tipo: 'correo', origen: 'enviarCorreosLote', detalle: err.message });
+    }
+    if (i + 100 < correos.length) await new Promise(r => setTimeout(r, 600));
+  }
+  return { enviados, fallidos };
+}
+
 export function plantillaBienvenida({ plan, municipio, estado, telegramLink, intro, paso }) {
   const esVip = plan === 'vip';
   const introHtml = intro ? textoAHtml(intro) : `${esVip ? '¡Gracias por tu pago!' : '¡Tu prueba gratuita ya quedó activa!'} Vamos a vigilar por ti:`;

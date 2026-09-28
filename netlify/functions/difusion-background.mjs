@@ -1,16 +1,18 @@
 // netlify/functions/difusion-background.mjs
-// Mensaje masivo por Telegram desde el panel admin, a clientes VIP o a
-// clientes Gratis. Es una Background Function (sufijo -background):
+// Mensaje masivo por Telegram O POR CORREO desde el panel admin, a
+// clientes VIP o a clientes Gratis. Es una Background Function (sufijo -background):
 // Netlify responde 202 de inmediato y esto sigue corriendo hasta 15 min,
 // así no se corta aunque haya cientos de destinatarios. El avance queda
 // en la tabla `difusiones`, que el admin consulta para ver el resultado.
 //
 // Solo a cuentas activas, con Telegram vinculado y sin Telegram apagado
 // en sus canales. Telegram permite ~30 mensajes/seg por bot; aquí se
-// manda ~20/seg para ir con margen.
+// manda ~20/seg para ir con margen. Por correo: activos con correo y sin
+// el canal de correo apagado, en lotes de 100 (API batch de Resend).
 
 import { enviarTelegramTexto } from './lib/soporte.mjs';
 import { registrarFallo } from './lib/fallos.mjs';
+import { enviarCorreosLote, plantillaAviso } from './lib/email.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -37,13 +39,17 @@ export default async (req) => {
   if (req.method !== 'POST') return;
   if (!ADMIN_PASSWORD || req.headers.get('x-admin-password') !== ADMIN_PASSWORD) return;
 
-  let segmento, texto;
+  let segmento, texto, canal, asunto;
   try {
     const body = await req.json();
     segmento = body.segmento;
     texto = (body.texto || '').trim();
+    canal = body.canal === 'correo' ? 'correo' : 'telegram';
+    asunto = (body.asunto || '').trim();
   } catch { return; }
-  if (!['vip', 'free'].includes(segmento) || !texto || texto.length > 4000) return;
+  if (!['vip', 'free'].includes(segmento) || !texto) return;
+  if (canal === 'correo') return difundirPorCorreo({ segmento, texto, asunto });
+  if (texto.length > 4000) return;
 
   const resDest = await fetch(
     `${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true&plan=eq.${segmento}&telegram_chat_id=not.is.null&select=id,telegram_chat_id,telegram_enabled`,
@@ -84,3 +90,35 @@ export default async (req) => {
     await registrarFallo({ tipo: 'difusion', origen: 'difusion-background', detalle: `Difusión #${difusion.id} (${segmento}): ${fallidos} sin entregar — ${resumen}` });
   }
 };
+
+// --- Por correo -----------------------------------------------------------------
+async function difundirPorCorreo({ segmento, texto, asunto }) {
+  if (!asunto || asunto.length > 200 || texto.length > 10000) return;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/suscriptores?activo=eq.true&plan=eq.${segmento}&email=not.is.null&select=id,email,email_enabled`,
+    { headers: headersSupabase() }
+  );
+  const destinatarios = (await res.json()).filter(s => s.email_enabled !== false);
+
+  const resCrear = await fetch(`${SUPABASE_URL}/rest/v1/difusiones`, {
+    method: 'POST',
+    headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+    body: JSON.stringify({ segmento, canal: 'correo', asunto, texto, destinatarios: destinatarios.length })
+  });
+  if (!resCrear.ok) {
+    await registrarFallo({ tipo: 'difusion', origen: 'difusion-background', detalle: 'No se pudo crear la difusión por correo (¿ya corriste sql/011?): ' + (await resCrear.text()) });
+    return;
+  }
+  const [difusion] = await resCrear.json();
+  const html = plantillaAviso({ texto });
+
+  let enviados = 0, fallidos = 0;
+  for (let i = 0; i < destinatarios.length; i += 100) {
+    const lote = destinatarios.slice(i, i + 100).map(s => ({ to: s.email, subject: asunto, html }));
+    const r = await enviarCorreosLote(lote);
+    enviados += r.enviados; fallidos += r.fallidos;
+    await actualizarDifusion(difusion.id, { enviados, fallidos });
+    if (i + 100 < destinatarios.length) await new Promise(r => setTimeout(r, 600));
+  }
+  await actualizarDifusion(difusion.id, { enviados, fallidos, estado: 'terminado', terminado_en: new Date().toISOString() });
+}

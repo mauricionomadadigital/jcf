@@ -1717,6 +1717,13 @@
       .banner-msg { font-size: 12px; margin-top: 6px; min-height: 15px; }
       /* --- Mensajes masivos y soporte --- */
       .msg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      .msg-box input.msg-asunto { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; font: inherit; font-size: 14px; margin-bottom: 8px; }
+      .msg-correo-prueba { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+      .msg-correo-prueba input { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; width: 240px; }
+      .msg-foot .msg-acc { display: flex; gap: 8px; flex-wrap: wrap; }
+      .canal-pill { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 9px; }
+      .canal-pill.telegram { background: #e5f4fc; color: #0f76a8; }
+      .canal-pill.correo { background: #eef1ff; color: #3d4fd6; }
       @media (max-width: 900px) { .msg-grid { grid-template-columns: 1fr; } }
       .msg-box { padding: 0 20px 20px; }
       .msg-box textarea, .chat-reply textarea { width: 100%; min-height: 120px; resize: vertical; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font: inherit; font-size: 14px; box-sizing: border-box; }
@@ -2369,7 +2376,7 @@
             class="nav-btn"
             data-screen="messages"
             data-title="Mensajes y soporte"
-            data-subtitle="Avisos masivos por Telegram y chat de soporte VIP"
+            data-subtitle="Avisos masivos por Telegram y por correo, y chat de soporte VIP"
           >
             <svg viewBox="0 0 24 24" fill="none"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Mensajes <span id="navSoporteBadge" class="oculto" style="margin-left:auto;background:#b42318;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;"></span>
           </button>
@@ -2692,6 +2699,34 @@
               </article>
             </div>
 
+            <div class="screen-heading" style="margin-top:28px;">
+              <h2>Mensajes masivos por correo</h2>
+              <p>Salen desde avisos@monitorjcf.online a los clientes activos con correo que no hayan apagado ese canal. Los links se vuelven clicables y al pie va cómo apagar los correos desde su panel.</p>
+            </div>
+            <div class="msg-correo-prueba">Correo para pruebas: <input id="correoPruebaDifusion" type="email" placeholder="tu@correo.com" /></div>
+            <div class="msg-grid">
+              <article class="card">
+                <div class="card-head"><div><h2>★ Clientes VIP</h2><p id="destCorreoVip">— destinatarios</p></div></div>
+                <div class="msg-box">
+                  <input class="msg-asunto" id="asuntoCorreoVip" maxlength="200" placeholder="Asunto — ej. Mañana abre la plataforma: prepárate" />
+                  <textarea id="txtCorreoVip" maxlength="10000" placeholder="Escribe el mensaje. Puedes incluir links: https://..."></textarea>
+                  <div class="msg-foot"><small id="cntCorreoVip">0 / 10000</small><div class="msg-acc">
+                    <button class="btn btn-secondary" data-difusion-correo-prueba="vip">🧪 Enviarme prueba</button>
+                    <button class="btn btn-primary btn-enviar" data-difusion-correo="vip"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Enviar a VIP</button></div></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="card-head"><div><h2>Clientes Gratis</h2><p id="destCorreoFree">— destinatarios</p></div></div>
+                <div class="msg-box">
+                  <input class="msg-asunto" id="asuntoCorreoFree" maxlength="200" placeholder="Asunto — ej. Sube a VIP y recibe una llamada" />
+                  <textarea id="txtCorreoFree" maxlength="10000" placeholder="Escribe el mensaje. Ej. Con VIP te llamamos en cuanto abra tu municipio: https://monitorjcf.online/checkout-vip.html"></textarea>
+                  <div class="msg-foot"><small id="cntCorreoFree">0 / 10000</small><div class="msg-acc">
+                    <button class="btn btn-secondary" data-difusion-correo-prueba="free">🧪 Enviarme prueba</button>
+                    <button class="btn btn-primary btn-enviar" data-difusion-correo="free"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Enviar a Gratis</button></div></div>
+                </div>
+              </article>
+            </div>
+
             <article class="card table-card" style="margin-top:18px;">
               <div class="card-head">
                 <div><h2>💬 Soporte VIP</h2><p>Mensajes que tus clientes VIP te escriben desde su panel o directo al bot. Tu respuesta les llega por Telegram.</p></div>
@@ -2704,7 +2739,7 @@
               <div class="card-head"><div><h2>Historial de envíos</h2><p>Últimos 30 mensajes masivos.</p></div></div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Fecha</th><th>Para</th><th>Mensaje</th><th>Entregados</th><th>Estado</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Canal</th><th>Para</th><th>Mensaje</th><th>Entregados</th><th>Estado</th></tr></thead>
                   <tbody id="tablaDifusiones"></tbody>
                 </table>
               </div>
@@ -3913,6 +3948,9 @@ function fechaHora(s){ return s ? new Date(s).toLocaleString('es-MX', {dateStyle
 function destinatariosDe(plan){
   return SUSCRIPTORES_CACHE.filter(s => s.activo && s.plan === plan && s.telegram_chat_id && s.telegram_enabled !== false).length;
 }
+function destinatariosCorreoDe(plan){
+  return SUSCRIPTORES_CACHE.filter(s => s.activo && s.plan === plan && s.email && s.email_enabled !== false).length;
+}
 function celdaSoporte(s){
   const r = s.soporte;
   if (!r) return s.plan === 'vip' ? '<span class="muted">—</span>' : '';
@@ -3934,14 +3972,15 @@ async function cargarDifusiones(){
   try {
     const { difusiones } = await api('difusiones');
     $('tablaDifusiones').innerHTML = difusiones.map(d => `<tr><td>${fechaHora(d.created_at)}</td>
+      <td><span class="canal-pill ${d.canal === 'correo' ? 'correo' : 'telegram'}">${d.canal === 'correo' ? '✉ Correo' : '✈ Telegram'}</span></td>
       <td><span class="plan-pill ${d.segmento === 'vip' ? 'plan-vip' : 'plan-free'}">${d.segmento === 'vip' ? '★ VIP' : 'Gratis'}</span></td>
-      <td style="max-width:420px;white-space:pre-wrap;">${escHtml(d.texto.length > 160 ? d.texto.slice(0, 160) + '…' : d.texto)}</td>
+      <td style="max-width:420px;white-space:pre-wrap;">${d.asunto ? `<b>${escHtml(d.asunto)}</b>\n` : ''}${escHtml(d.texto.length > 160 ? d.texto.slice(0, 160) + '…' : d.texto)}</td>
       <td>${d.enviados} / ${d.destinatarios}${d.fallidos ? ` <small style="color:#b42318;">(${d.fallidos} fallaron)</small>` : ''}</td>
       <td><span class="status-pill ${d.estado === 'terminado' ? 'open' : d.estado === 'error' ? 'error' : 'goal'}">${d.estado === 'terminado' ? 'Terminado' : d.estado === 'error' ? 'Error' : 'Enviando…'}</span></td></tr>`).join('')
-      || '<tr><td colspan="5">Aún no has enviado mensajes masivos.</td></tr>';
+      || '<tr><td colspan="6">Aún no has enviado mensajes masivos.</td></tr>';
     return difusiones;
   } catch (err) {
-    $('tablaDifusiones').innerHTML = `<tr><td colspan="5">No se pudo leer el historial (¿ya corriste sql/007?): ${escHtml(err.message)}</td></tr>`;
+    $('tablaDifusiones').innerHTML = `<tr><td colspan="6">No se pudo leer el historial (¿ya corriste sql/007?): ${escHtml(err.message)}</td></tr>`;
     return [];
   }
 }
@@ -3950,6 +3989,12 @@ async function cargarMensajes(){
   SUSCRIPTORES_CACHE = suscriptores;
   $('destVip').textContent = `${destinatariosDe('vip')} destinatarios con Telegram vinculado`;
   $('destFree').textContent = `${destinatariosDe('free')} destinatarios con Telegram vinculado`;
+  $('destCorreoVip').textContent = `${destinatariosCorreoDe('vip')} destinatarios con correo activo`;
+  $('destCorreoFree').textContent = `${destinatariosCorreoDe('free')} destinatarios con correo activo`;
+  if (!$('correoPruebaDifusion').value) {
+    let g = ''; try { g = localStorage.getItem('jcf_admin_correo_prueba') || ''; } catch {}
+    $('correoPruebaDifusion').value = g || 'maurixcasas@gmail.com';
+  }
   pintarBandeja();
   pintarBadgeNav();
   await cargarDifusiones();
@@ -3983,6 +4028,50 @@ document.querySelectorAll('[data-difusion]').forEach(btn => btn.addEventListener
       await new Promise(r => setTimeout(r, 2500));
       const ds = await cargarDifusiones();
       if (ds[0] && ds[0].estado !== 'enviando') break;
+    }
+  } catch (err) { notify('Error: ' + err.message); }
+  finally { btn.disabled = false; }
+}));
+
+// --- Mensajes masivos por correo -------------------------------------------------
+[['txtCorreoVip','cntCorreoVip'], ['txtCorreoFree','cntCorreoFree']].forEach(([t, c]) =>
+  $(t).addEventListener('input', () => { $(c).textContent = `${$(t).value.length} / 10000`; }));
+function datosCorreoMasivo(segmento){
+  const suf = segmento === 'vip' ? 'Vip' : 'Free';
+  return { asunto: $(`asuntoCorreo${suf}`).value.trim(), texto: $(`txtCorreo${suf}`).value.trim(), suf };
+}
+document.querySelectorAll('[data-difusion-correo-prueba]').forEach(btn => btn.addEventListener('click', async () => {
+  const { asunto, texto } = datosCorreoMasivo(btn.dataset.difusionCorreoPrueba);
+  const correo = $('correoPruebaDifusion').value.trim();
+  if (!asunto || !texto) { notify('Escribe el asunto y el mensaje primero.'); return; }
+  try { localStorage.setItem('jcf_admin_correo_prueba', correo); } catch {}
+  btn.disabled = true;
+  try { await api('difusion-correo-prueba', 'POST', { asunto, texto, correo }); notify(`Prueba enviada a ${correo}`); }
+  catch (err) { notify('Error: ' + err.message); }
+  finally { btn.disabled = false; }
+}));
+document.querySelectorAll('[data-difusion-correo]').forEach(btn => btn.addEventListener('click', async () => {
+  const segmento = btn.dataset.difusionCorreo;
+  const { asunto, texto, suf } = datosCorreoMasivo(segmento);
+  const n = destinatariosCorreoDe(segmento);
+  const nombre = segmento === 'vip' ? 'VIP' : 'Gratis';
+  if (!asunto || !texto) { notify('Escribe el asunto y el mensaje.'); return; }
+  if (!n) { notify(`No hay clientes ${nombre} con correo activo.`); return; }
+  if (!confirm(`¿Enviar este CORREO a ${n} cliente(s) ${nombre}? No se puede deshacer.\n\nAsunto: ${asunto}\n\n${texto.slice(0, 300)}`)) return;
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/.netlify/functions/difusion-background', {
+      method: 'POST',
+      headers: { 'x-admin-password': PASS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ segmento, canal: 'correo', asunto, texto })
+    });
+    if (resp.status !== 202 && !resp.ok) throw new Error('HTTP ' + resp.status);
+    $(`asuntoCorreo${suf}`).value = ''; $(`txtCorreo${suf}`).value = ''; $(`txtCorreo${suf}`).dispatchEvent(new Event('input'));
+    notify(`Enviando correo a ${n} cliente(s) ${nombre}… el avance aparece en el historial.`);
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 2500));
+      const ds = await cargarDifusiones();
+      if (ds[0] && ds[0].canal === 'correo' && ds[0].estado !== 'enviando') break;
     }
   } catch (err) { notify('Error: ' + err.message); }
   finally { btn.disabled = false; }

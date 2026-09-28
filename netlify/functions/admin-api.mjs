@@ -6,6 +6,7 @@ import { normalizar, estadoTexto, descargarCatalogo, enviarTelegram } from './li
 import { guardarMensaje, hiloDe, enviarTelegramTexto } from './lib/soporte.mjs';
 import { validarBase64Imagen, TOTAL_BANNERS, MAX_BYTES_BANNER } from './lib/banners.mjs';
 import { cargarFlujo } from './lib/flujo.mjs';
+import { enviarCorreo, plantillaAviso } from './lib/email.mjs';
 import { estadoFlujo, guardarEstacion, restaurarEstacion, probarEstacion } from './lib/flujo-admin.mjs';
 import { destinatarios as destinatariosFlujo, dispararUno, historialDisparos } from './lib/flujo-disparo.mjs';
 
@@ -330,6 +331,14 @@ export default async (req) => {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/landing_banners?slot=eq.${n}`, { method: 'DELETE', headers: headersSupabase() });
       if (!res.ok) return json({ error: await res.text() }, 500);
       return json({ ok: true });
+    }
+    // Prueba del correo masivo: solo al correo que indique el admin.
+    if (req.method === 'POST' && action === 'difusion-correo-prueba') {
+      const { asunto, texto, correo } = await req.json();
+      if (!asunto || !texto) return json({ error: 'Escribe el asunto y el mensaje.' }, 400);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo || '')) return json({ error: 'Correo de prueba no válido.' }, 400);
+      const ok = await enviarCorreo(correo, `[PRUEBA] ${asunto}`, plantillaAviso({ texto }));
+      return ok ? json({ ok: true }) : json({ error: 'Resend no aceptó el correo (revisa Admin > Fallos).' }, 500);
     }
     if (req.method === 'GET' && action === 'difusiones') {
       return json({ ok: true, difusiones: await sb('difusiones?select=*&order=created_at.desc&limit=30') });
