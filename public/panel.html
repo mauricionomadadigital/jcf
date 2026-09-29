@@ -2002,6 +2002,43 @@
       .mobile-upgrade {
         display: none;
       }
+
+      /* ===== Línea de tiempo del cliente (tipo rastreo de paquete) ===== */
+      .trk { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px 18px 16px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(16,40,68,.06); }
+      .trk-titulo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+      .trk-titulo h3 { margin: 0; font-size: 16px; }
+      .trk-titulo small { color: var(--muted); font-size: 12.5px; }
+      .trk-pasos { display: flex; align-items: flex-start; }
+      .trk-paso { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; min-width: 0; }
+      .trk-paso + .trk-paso::before { content: ''; position: absolute; top: 17px; right: 50%; width: 100%; height: 3px; background: #e2e8f0; z-index: 0; }
+      .trk-paso.ok + .trk-paso::before, .trk-paso.ok + .trk-paso.ok::before { background: #1dad72; }
+      .trk-circ { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 15px; background: #eef2f7; color: #94a3b8; border: 3px solid #fff; box-shadow: 0 0 0 2px #e2e8f0; position: relative; z-index: 1; }
+      .trk-paso.ok .trk-circ { background: #1dad72; color: #fff; box-shadow: 0 0 0 2px #1dad72; }
+      .trk-paso.actual .trk-circ { background: #2367f5; color: #fff; box-shadow: 0 0 0 2px #2367f5; animation: trkPulso 1.6s ease-in-out infinite; }
+      @keyframes trkPulso { 0%, 100% { box-shadow: 0 0 0 2px #2367f5, 0 0 0 0 rgba(35,103,245,.45); } 50% { box-shadow: 0 0 0 2px #2367f5, 0 0 0 9px rgba(35,103,245,0); } }
+      @media (prefers-reduced-motion: reduce) { .trk-paso.actual .trk-circ { animation: none; } }
+      .trk-nombre { margin-top: 7px; font-size: 12.5px; font-weight: 800; color: #334155; }
+      .trk-estado { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+      .trk-paso.ok .trk-estado { color: #178e5c; font-weight: 700; }
+      .trk-paso.actual .trk-estado { color: #2367f5; font-weight: 800; }
+      .trk-det { margin-top: 16px; border-radius: 14px; padding: 14px 16px; background: #f4f8ff; border: 1px solid #d9e6ff; font-size: 13.5px; color: #1e3a5f; line-height: 1.5; }
+      .trk-det b { color: #0f2a4a; }
+      .trk-det ol { margin: 8px 0 0; padding-left: 20px; }
+      .trk-det li { margin: 3px 0; }
+      .trk-acc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .trk-acc a, .trk-acc button { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; padding: 8px 13px; font-size: 13px; font-weight: 800; text-decoration: none; cursor: pointer; border: 1px solid var(--line); background: #fff; color: #1e3a5f; font-family: inherit; }
+      .trk-acc .prim { background: #229ED9; border-color: #229ED9; color: #fff; }
+      .trk-acc .azul { background: #2367f5; border-color: #2367f5; color: #fff; }
+      .trk-det.listo { background: linear-gradient(140deg, #e8fbf2, #eef9ff); border-color: #bfe9d6; color: #14532d; }
+      .trk-det.listo.vip { background: linear-gradient(140deg, #fff7e0, #e9fbf3); border-color: #f3d27a; color: #5c3b00; }
+      .trk-aviso { margin-top: 12px; border-radius: 12px; padding: 10px 13px; background: #fdecec; border: 1px solid #f5b5b5; color: #b42318; font-weight: 800; font-size: 13px; }
+      @media (max-width: 640px) {
+        .trk-pasos { flex-direction: column; gap: 4px; }
+        .trk-paso { flex-direction: row; text-align: left; gap: 12px; align-items: center; padding: 4px 0; }
+        .trk-paso + .trk-paso::before { top: auto; bottom: 50%; right: auto; left: 17px; width: 3px; height: 100%; transform: translateY(-2px); }
+        .trk-nombre { margin-top: 0; }
+        .trk-textos { display: flex; flex-direction: column; }
+      }
       .chat-soporte { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
       .chat-soporte .burbuja { max-width: 88%; padding: 9px 12px; border-radius: 14px; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
       .chat-soporte .burbuja small { display: block; margin-top: 4px; font-size: 10.5px; opacity: .7; }
@@ -2281,6 +2318,14 @@
         <span>Tu cuenta está archivada — dejaste de recibir avisos cuando cerró un ciclo anterior.</span>
         <button class="btn btn-secondary" id="btnReactivarCuenta">Reactivar mi cuenta</button>
       </div>
+
+      <!-- Línea de tiempo: en qué paso va el cliente (registro → correo → Telegram → teléfono VIP) -->
+      <section class="trk" id="trk" aria-label="Tu progreso">
+        <div class="trk-titulo"><h3>Tu progreso</h3><small id="trkResumen"></small></div>
+        <div class="trk-pasos" id="trkPasos"></div>
+        <div class="trk-det" id="trkDetalle"></div>
+        <div class="trk-aviso oculto" id="trkAviso">Para subir a VIP es necesario que ya tengas Telegram instalado y tu bot de Monitor JCF activado. Sigue el paso marcado arriba 👆</div>
+      </section>
       <div class="portal-tabs" aria-label="Secciones del panel del usuario">
         <button class="active" data-scroll-customer="monitoring">Mi monitoreo</button>
         <button data-scroll-customer="guide">Guía y documentos</button>
@@ -2441,7 +2486,7 @@
             </div>
           </article>
 
-          <article class="portal-card" style="margin-top: 16px">
+          <article class="portal-card section-anchor" id="canales" style="margin-top: 16px">
             <h3>Canales de aviso</h3>
             <p>Activa tus medios de contacto. Algunos datos son obligatorios según el canal.</p>
             <div class="channel-option">
@@ -2662,6 +2707,7 @@ async function cargarPanel(){
   cargarVideos();
 }
 function renderPlan(){
+  pintarTracker();
   $('cuentaInactivaBanner').classList.toggle('oculto', CUENTA.activo !== false);
   actualizarTextoCambiosRestantes();
   $('perfilNombre').value = CUENTA.nombre || '';
@@ -2745,6 +2791,94 @@ function pintarTelegram(cfg){
   $('telegramVinculado').classList.toggle('oculto', !vinculado);
 }
 
+
+// --- Línea de tiempo del cliente ---------------------------------------------------
+// Pasos: Registro → Correo (abrió el link del correo o entró con Google) →
+// Telegram (bot vinculado) → Teléfono (solo VIP: +52 con llamada activa).
+const TRK_TG_ANDROID = 'https://play.google.com/store/apps/details?id=org.telegram.messenger';
+const TRK_TG_IOS = 'https://apps.apple.com/app/telegram-messenger/id686449807';
+function trkLinkBot(){
+  const bot = CONFIG_PUBLICA.telegram_bot;
+  return bot && CUENTA?.telegram_token ? `https://t.me/${bot}?start=${CUENTA.telegram_token}` : null;
+}
+function trkEstado(){
+  const esVip = CUENTA?.plan === 'vip';
+  const pasos = [
+    { id: 'registro', nombre: 'Registro', ok: true },
+    { id: 'correo', nombre: 'Correo', ok: !!CUENTA?.correo_verificado_at },
+    { id: 'telegram', nombre: 'Telegram', ok: !!CUENTA?.telegram_chat_id }
+  ];
+  if (esVip) pasos.push({ id: 'telefono', nombre: 'Teléfono', ok: !!(CUENTA.phone && (CUENTA.telefono_prefijo || '+52') === '+52' && CUENTA.call_enabled) });
+  const actual = pasos.find(p => !p.ok) || null;
+  return { esVip, pasos, actual };
+}
+function pintarTracker(){
+  if (!CUENTA) return;
+  const { esVip, pasos, actual } = trkEstado();
+  const hechos = pasos.filter(p => p.ok).length;
+  $('trkResumen').textContent = actual ? `${hechos} de ${pasos.length} pasos listos` : 'Todo listo ✓';
+  $('trkPasos').innerHTML = pasos.map((p, i) => {
+    const clase = p.ok ? 'ok' : (actual && actual.id === p.id ? 'actual' : '');
+    const estado = p.ok ? 'Listo' : (clase === 'actual' ? '👉 Vas aquí' : 'Pendiente');
+    return `<div class="trk-paso ${clase}"><div class="trk-circ">${p.ok ? '✓' : i + 1}</div><div class="trk-textos"><span class="trk-nombre">${p.nombre}</span><span class="trk-estado">${estado}</span></div></div>`;
+  }).join('');
+  const det = $('trkDetalle');
+  det.className = 'trk-det';
+  if (!actual) {
+    det.classList.add('listo');
+    if (esVip) {
+      det.classList.add('vip');
+      det.innerHTML = `🎉 <b>¡Felicidades! Estás listo para monitorear 24/7 cada ${CONFIG_PUBLICA.vip_frecuencia_min || 10} minutos.</b><br>Si abre ${escHtml(CUENTA.municipio)} te avisamos por Telegram, correo y te llamamos.`;
+    } else {
+      det.innerHTML = `✅ <b>¡Listo! Tu monitoreo gratis está activo.</b><br>Te avisaremos por Telegram y correo cuando abra ${escHtml(CUENTA.municipio)}. ¿Quieres enterarte más rápido y con llamada? Sube a VIP desde este panel.`;
+    }
+    $('trkAviso').classList.add('oculto');
+    return;
+  }
+  if (actual.id === 'correo') {
+    det.innerHTML = `📧 <b>Revisa tu correo</b> (${escHtml(CUENTA.email)}): te enviamos un botón para vincular tu Telegram. Ábrelo desde ahí — a veces llega a <b>spam</b> o "Promociones".
+      <div class="trk-acc"><button type="button" id="trkReenviar">Reenviar correo</button>${CUENTA.telegram_chat_id ? '' : '<button type="button" data-trk-ir="telegram">Prefiero vincular Telegram desde aquí</button>'}</div>`;
+  } else if (actual.id === 'telegram') {
+    const link = trkLinkBot();
+    det.innerHTML = `✈️ <b>Activa tu bot de Telegram</b> — ahí te llega la alerta al instante.
+      <ol><li>¿No tienes Telegram? Instálalo: <a href="${TRK_TG_ANDROID}" target="_blank" rel="noopener">Android</a> · <a href="${TRK_TG_IOS}" target="_blank" rel="noopener">iPhone</a>, y regístrate con tu número.</li>
+      <li>Toca <b>Vincular mi bot</b> y en Telegram presiona <b>Iniciar</b>.</li>
+      <li>Regresa aquí y toca <b>Ya lo vinculé</b>.</li></ol>
+      <div class="trk-acc">${link ? `<a class="prim" href="${link}" target="_blank" rel="noopener">✈ Vincular mi bot</a>` : ''}<button type="button" id="trkRefrescar">Ya lo vinculé</button></div>`;
+  } else if (actual.id === 'telefono') {
+    const motivo = !CUENTA.phone ? 'Agrega tu número celular (México, 10 dígitos)' : (CUENTA.telefono_prefijo || '+52') !== '+52' ? 'La llamada automática solo funciona con números de México (+52)' : 'Activa la <b>llamada automática</b> en tus canales de aviso';
+    det.innerHTML = `📞 <b>Último paso de VIP:</b> ${motivo} para que te llamemos en cuanto abra tu municipio.
+      <div class="trk-acc"><button type="button" class="azul" data-trk-ir="${!CUENTA.phone || (CUENTA.telefono_prefijo || '+52') !== '+52' ? 'datosPersonales' : 'canales'}">Ir a completarlo</button></div>`;
+  }
+}
+async function trkRecargarCuenta(){
+  try { const { suscriptor } = await apiAuth('me'); CUENTA = suscriptor; renderPlan(); pintarTelegram(CONFIG_PUBLICA); } catch {}
+}
+$('trk').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'trkRefrescar') {
+    b.disabled = true; b.textContent = 'Revisando…';
+    await trkRecargarCuenta();
+    if (!CUENTA.telegram_chat_id) { b.disabled = false; b.textContent = 'Ya lo vinculé'; notificarTrk('Aún no vemos tu bot vinculado. En Telegram presiona "Iniciar" y vuelve a intentar.'); }
+    return;
+  }
+  if (b.id === 'trkReenviar') {
+    b.disabled = true; b.textContent = 'Enviando…';
+    try { await apiCliente('reenviar-bienvenida', 'POST', {}); b.textContent = 'Enviado ✓ revisa tu correo'; }
+    catch (err) { b.textContent = 'Reenviar correo'; b.disabled = false; notificarTrk(err.message); }
+    return;
+  }
+  if (b.dataset.trkIr === 'telegram') {
+    const link = trkLinkBot(); if (link) window.open(link, '_blank', 'noopener');
+    return;
+  }
+  if (b.dataset.trkIr) { $(b.dataset.trkIr)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+});
+function notificarTrk(texto){
+  const a = $('trkAviso'); a.textContent = texto; a.classList.remove('oculto');
+  setTimeout(() => { a.classList.add('oculto'); }, 7000);
+}
+
 // --- Soporte directo (solo VIP) ---------------------------------------------------
 function escHtml(t){ return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function pintarSoporte(mensajes){
@@ -2775,7 +2909,7 @@ $('btnEnviarSoporte').addEventListener('click', async () => {
   } catch (err) { msg.textContent = 'Error: ' + err.message; }
   finally { $('btnEnviarSoporte').disabled = false; }
 });
-$('btnSoporteUpgrade').addEventListener('click', () => { location.href = '/checkout-vip.html'; });
+$('btnSoporteUpgrade').addEventListener('click', () => irACheckoutVip());
 
 // Precio VIP y textos de oferta/escasez, configurables desde el admin.
 function pintarPrecioVip(cfg){
@@ -2910,7 +3044,17 @@ $('saveChannels').addEventListener('click', async () => {
 
 // --- Subir a VIP: pasa por una página de checkout dedicada, nunca vuelve
 // a pedir datos que ya tiene la cuenta. ------------------------------------
-function irACheckoutVip(){ location.href = '/checkout-vip.html'; }
+// Regla: para subir a VIP hay que tener el bot de Telegram vinculado.
+function irACheckoutVip(){
+  if (!CUENTA?.telegram_chat_id) {
+    const a = $('trkAviso');
+    a.textContent = 'Para subir a VIP es necesario que ya tengas Telegram instalado y tu bot de Monitor JCF activado. Sigue el paso marcado arriba 👆';
+    a.classList.remove('oculto');
+    $('trk').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  location.href = '/checkout-vip.html';
+}
 $('upgradeButton').addEventListener('click', irACheckoutVip);
 $('mobileUpgradeButton').addEventListener('click', irACheckoutVip);
 

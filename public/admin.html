@@ -1715,6 +1715,16 @@
       .banner-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
       .banner-acciones .btn { padding: 8px 12px; font-size: 12.5px; }
       .banner-msg { font-size: 12px; margin-top: 6px; min-height: 15px; }
+      /* --- Pagos: estatus, forzar VIP y conciliación --- */
+      .pago-est { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+      .pago-est.ok { background: #e7f8f1; color: #178e5c; }
+      .pago-est.mal { background: #fdecec; color: #b42318; }
+      .pago-est.venc { background: #f1f5f9; color: #475569; }
+      .pago-est.man { background: #fff4e5; color: #9a4b00; }
+      .btn-forzar { margin-top: 6px; border: 0; border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 800; background: #b42318; color: #fff; cursor: pointer; }
+      .conc { margin: 0 20px 16px; border: 1px solid #d9e6ff; background: #f5f9ff; border-radius: 14px; padding: 14px 16px; font-size: 13px; }
+      .conc-f { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px dashed #d9e6ff; }
+      .conc-f:last-child { border-bottom: 0; }
       /* --- Mensajes masivos y soporte --- */
       .msg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
       .msg-box input.msg-asunto { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; font: inherit; font-size: 14px; margin-bottom: 8px; }
@@ -2815,11 +2825,13 @@
             <div class="stats" id="pagosStats"></div>
             <article class="card table-card">
               <div class="card-head">
-                <div><h2>Movimientos recientes</h2><p>Activación automática después del pago; ciclo y descuento por continuidad.</p></div>
+                <div><h2>Historial de pagos</h2><p>Un renglón por pago aprobado, ligado al PERFIL que compró (no al correo de Mercado Pago). Si un pago no se reflejó como VIP, fuérzalo aquí.</p></div>
+                <button class="btn btn-secondary" id="btnConciliar" title="Compara con Mercado Pago y muestra pagos aprobados que no llegaron al sistema">⇄ Conciliar con Mercado Pago</button>
               </div>
+              <div class="conc oculto" id="concResultado"></div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Cliente</th><th>Municipio</th><th>Importe</th><th>Ciclo</th><th>Descuento</th><th>Inicio</th><th>Finaliza</th><th>Estado</th></tr></thead>
+                  <thead><tr><th>Perfil que compró</th><th>Municipio</th><th>Importe</th><th>Ciclo</th><th>Descuento</th><th>Inicio</th><th>Finaliza</th><th>Estatus</th></tr></thead>
                   <tbody id="tablaPagos"></tbody>
                 </table>
               </div>
@@ -3343,6 +3355,17 @@ async function cargarFallos() {
 $('btnRefrescarFallos').addEventListener('click', () => cargarFallos().catch(err => notify('Error: ' + err.message)));
 
 // --- Pagos ---------------------------------------------------------------------------
+// Estatus de cada pago frente a la cuenta que compró:
+// vigente + cuenta VIP = OK; vigente + cuenta NO VIP = problema (Forzar VIP);
+// vencido = normal (a los 14 días vuelve a Gratis).
+function estatusPago(p){
+  const manual = p.forzado_manual ? '<br><span class="pago-est man" title="' + escHtml(p.nota || '') + '">✋ Forzado a mano</span>' : '';
+  if (!p.suscriptor_id || !p.plan) return '<span class="pago-est mal">⚠ Cuenta borrada</span>';
+  if (p.vigente && p.plan === 'vip') return '<span class="pago-est ok">✅ VIP · Pagado</span>' + manual;
+  if (p.vigente) return `<span class="pago-est mal">⚠ Pagado pero NO es VIP${p.plan === 'inactiva' ? ' (cuenta desactivada)' : ''}</span><br><button class="btn-forzar" data-forzar="${escHtml(p.payment_id)}" data-correo="${escHtml(p.email || '')}">Forzar VIP</button>`;
+  return `<span class="pago-est venc">⌛ Pagado · vencido (${p.plan === 'vip' ? 'sigue VIP por otro pago' : 'ya es Gratis'})</span>` + manual;
+}
+
 async function cargarPagos() {
   const { pagos } = await api('pagos');
   const totalIngresos = pagos.reduce((s,p)=>s+(Number(p.monto)||0),0);
@@ -3357,9 +3380,37 @@ async function cargarPagos() {
     <tr><td>${escHtml(p.email || '—')}${p.pagador_email && p.pagador_email !== p.email ? `<br><small class="muted">pagó: ${escHtml(p.pagador_email)}</small>` : ''}</td><td>${escHtml(p.municipio || '')}, ${escHtml(p.estado || '')}</td><td><strong>${money(p.monto)}</strong></td>
       <td>Ciclo ${p.ciclo ?? '—'}</td><td>${p.descuento_aplicado ? p.descuento_aplicado + '%' : '—'}</td>
       <td>${fecha(p.vip_desde || p.created_at)}</td><td>${fecha(p.finaliza)}</td>
-      <td><span class="status-pill ${p.vigente ? 'open' : 'error'}">${p.vigente ? 'Vigente' : (p.plan === 'vip' ? 'Vencido, sigue VIP' : 'Vencido, ya es Gratis')}</span></td></tr>`).join('') || '<tr><td colspan="8">Sin pagos VIP todavía.</td></tr>';
+      <td>${estatusPago(p)}</td></tr>`).join('') || '<tr><td colspan="8">Sin pagos VIP todavía.</td></tr>';
   window._PAGOS_CACHE = pagos;
 }
+$('tablaPagos').addEventListener('click', async e => {
+  const b = e.target.closest('[data-forzar]'); if (!b) return;
+  if (!confirm(`¿Forzar VIP para ${b.dataset.correo}?\n\nSe activan sus 14 días de VIP (desde la fecha del pago, o desde hoy si ya pasaron), se anota en el historial que fue manual y le llega el correo de "VIP activo".`)) return;
+  b.disabled = true; b.textContent = 'Activando…';
+  try { const r = await api('forzar-vip', 'POST', { payment_id: b.dataset.forzar }); notify(`VIP activado para ${r.email}`); await cargarPagos(); }
+  catch (err) { notify('Error: ' + err.message); b.disabled = false; b.textContent = 'Forzar VIP'; }
+});
+$('btnConciliar').addEventListener('click', async () => {
+  const box = $('concResultado'); const btn = $('btnConciliar');
+  box.classList.remove('oculto'); box.innerHTML = 'Consultando Mercado Pago (últimos 60 días)…'; btn.disabled = true;
+  try {
+    const { revisados, faltantes } = await api('conciliar-mp');
+    box.innerHTML = faltantes.length
+      ? `<b>⚠ ${faltantes.length} pago(s) aprobado(s) en Mercado Pago que NO están en el sistema</b> (de ${revisados} revisados):` + faltantes.map(f => `
+          <div class="conc-f"><div><b>${money(f.monto)}</b> · pago ${escHtml(f.payment_id)} · ${fechaHora(f.fecha)}<br>
+            <small>Perfil: <b>${escHtml(f.cuenta_email || '¿?')}</b>${f.pagador_email && f.pagador_email !== f.cuenta_email ? ` · pagó: ${escHtml(f.pagador_email)}` : ''}${f.metodo ? ' · ' + escHtml(f.metodo) : ''}</small></div>
+            <button class="btn btn-primary" data-aplicar="${escHtml(f.payment_id)}">Aplicar pago</button></div>`).join('')
+      : `✅ Todo cuadra: los ${revisados} pagos aprobados en Mercado Pago (últimos 60 días) están en el sistema.`;
+  } catch (err) { box.innerHTML = 'Error: ' + escHtml(err.message); }
+  finally { btn.disabled = false; }
+});
+$('concResultado').addEventListener('click', async e => {
+  const b = e.target.closest('[data-aplicar]'); if (!b) return;
+  if (!confirm(`¿Aplicar el pago ${b.dataset.aplicar}? Se sube a VIP el perfil que compró y queda en el historial.`)) return;
+  b.disabled = true; b.textContent = 'Aplicando…';
+  try { const { resultado } = await api('aplicar-pago', 'POST', { payment_id: b.dataset.aplicar }); notify(`Pago aplicado: ${resultado.email} ya es VIP`); b.closest('.conc-f').remove(); await cargarPagos(); }
+  catch (err) { notify('Error: ' + err.message); b.disabled = false; b.textContent = 'Aplicar pago'; }
+});
 $('btnExportarPagos').addEventListener('click', () => {
   descargarCSV('pagos.csv', window._PAGOS_CACHE || [], [
     {titulo:'Pago MP', campo:'payment_id'}, {titulo:'Correo', campo:'email'}, {titulo:'Pagó', campo:'pagador_email'}, {titulo:'Municipio', campo:'municipio'}, {titulo:'Monto', campo:'monto'},

@@ -6,6 +6,7 @@ import { normalizar, estadoTexto, descargarCatalogo, enviarTelegram } from './li
 import { guardarMensaje, hiloDe, enviarTelegramTexto } from './lib/soporte.mjs';
 import { validarBase64Imagen, TOTAL_BANNERS, MAX_BYTES_BANNER } from './lib/banners.mjs';
 import { cargarFlujo } from './lib/flujo.mjs';
+import { forzarVip, conciliarMercadoPago, aplicarPago } from './lib/pagos-admin.mjs';
 import { enviarCorreo, plantillaAviso } from './lib/email.mjs';
 import { estadoFlujo, guardarEstacion, restaurarEstacion, probarEstacion } from './lib/flujo-admin.mjs';
 import { destinatarios as destinatariosFlujo, dispararUno, historialDisparos } from './lib/flujo-disparo.mjs';
@@ -202,12 +203,15 @@ async function listarPagos(respaldo) {
   }
 }
 async function calcularPagos() {
-  const [pagos, cuentas] = await Promise.all([listarPagos(), sb('suscriptores?select=id,plan&limit=5000')]);
+  const [pagos, cuentas] = await Promise.all([listarPagos(), sb('suscriptores?select=id,plan,activo&limit=5000')]);
   const porId = new Map(cuentas.map(c => [c.id, c]));
   return pagos.map(p => {
     const inicio = p.vip_desde || p.created_at;
     const finaliza = inicio ? new Date(new Date(inicio).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString() : null;
-    return { ...p, plan: porId.get(p.suscriptor_id)?.plan || null, finaliza, vigente: finaliza ? new Date(finaliza).getTime() > Date.now() : null };
+    const cuenta = porId.get(p.suscriptor_id);
+    // Una cuenta desactivada no recibe avisos aunque diga VIP: para el
+    // estatus cuenta como "no es VIP".
+    return { ...p, plan: cuenta ? (cuenta.activo ? cuenta.plan : 'inactiva') : null, finaliza, vigente: finaliza ? new Date(finaliza).getTime() > Date.now() : null };
   });
 }
 
@@ -384,6 +388,19 @@ export default async (req) => {
     if (req.method === 'GET' && action === 'stats') return json({ ok: true, stats: await calcularStats() });
     if (req.method === 'GET' && action === 'monitoreos') return json({ ok: true, monitoreos: await calcularMonitoreos() });
     if (req.method === 'GET' && action === 'pagos') return json({ ok: true, pagos: await calcularPagos() });
+    // --- Pagos: herramientas manuales del admin ---
+    if (req.method === 'POST' && action === 'forzar-vip') {
+      try { return json({ ok: true, ...(await forzarVip((await req.json()).payment_id)) }); }
+      catch (err) { return json({ error: err.message }, 400); }
+    }
+    if (req.method === 'GET' && action === 'conciliar-mp') {
+      try { return json({ ok: true, ...(await conciliarMercadoPago()) }); }
+      catch (err) { return json({ error: err.message }, 400); }
+    }
+    if (req.method === 'POST' && action === 'aplicar-pago') {
+      try { return json({ ok: true, resultado: await aplicarPago((await req.json()).payment_id) }); }
+      catch (err) { return json({ error: err.message }, 400); }
+    }
     if (req.method === 'GET' && action === 'referidos') return json({ ok: true, ...(await calcularReferidos()) });
     if (req.method === 'GET' && action === 'llamadas') return json({ ok: true, llamadas: await calcularLlamadas() });
     if (req.method === 'GET' && action === 'alertas') return json({ ok: true, ...(await calcularAlertas()) });

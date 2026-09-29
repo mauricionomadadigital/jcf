@@ -2375,6 +2375,16 @@ async function cargarCheckout(){
   CUENTA = suscriptor;
   window.jcfPixelUsuario && jcfPixelUsuario(CUENTA);
   if (CUENTA.plan === 'vip') { location.href = '/panel.html'; return; }
+  // Regla: sin el bot de Telegram vinculado no se puede subir a VIP.
+  if (!CUENTA.telegram_chat_id) {
+    $('cargando').classList.add('oculto');
+    $('resultadoPagoTitulo').textContent = 'Primero activa tu Telegram';
+    $('resultadoPagoTexto').textContent = 'Para subir a VIP es necesario que ya tengas Telegram instalado y tu bot de Monitor JCF activado. En tu panel te guiamos paso a paso; en cuanto lo actives, vuelve aquí.';
+    $('resultadoPagoLink').href = '/panel.html';
+    $('resultadoPagoLink').textContent = 'Ir a mi panel y activarlo';
+    $('resultadoPago').classList.remove('oculto');
+    return;
+  }
 
   let frecVip = 10, cfg = {};
   try { const r = await fetch('/.netlify/functions/config-publica'); cfg = await r.json(); frecVip = cfg.vip_frecuencia_min || 10; } catch {}

@@ -26,7 +26,9 @@ const cajaCorreo = (contenido) => `
       ${contenido}
     </div>`;
 const bajaLink = (s) => `${SITE_URL}/.netlify/functions/baja?token=${s.telegram_token}`;
-export const linkTelegram = (s) => `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${s.telegram_token}`;
+// Link del bot para CORREOS: pasa por ir-telegram.mjs, que anota que el
+// cliente abrió su correo (línea de tiempo del panel) y luego lo manda al bot.
+export const linkTelegram = (s) => `${SITE_URL}/.netlify/functions/ir-telegram?t=${s.telegram_token}`;
 
 function lineaSoporte(f, s) {
   return s.plan === 'vip' ? '\n\n' + f.texto('apertura', 'extra_vip', { link_soporte: LINK_SOPORTE }) : '';

@@ -5,6 +5,8 @@
 import { suscriptorDesdeToken, tokenDesdeRequest, verifyPassword, hashPassword } from './lib/auth.mjs';
 import { normalizar, estadoTexto, descargarCatalogo } from './lib/dtmlp.mjs';
 import { guardarMensaje, hiloDe, avisarAdmin, MAX_MENSAJE_SOPORTE } from './lib/soporte.mjs';
+import { cargarFlujo } from './lib/flujo.mjs';
+import { CONSTRUCTORES, enviarEstacion, volcarEnvios } from './lib/flujo-mensajes.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -104,6 +106,19 @@ export default async (req) => {
     }
 
     // --- Soporte (chat con el administrador) — exclusivo VIP ---------------
+    // --- Línea de tiempo: reenviar el correo de bienvenida ------------------
+    if (req.method === 'POST' && action === 'reenviar-bienvenida') {
+      const hace2min = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const rec = await fetch(`${SUPABASE_URL}/rest/v1/flujo_envios?suscriptor_id=eq.${suscriptor.id}&clave=eq.bienvenida_gratis&created_at=gte.${encodeURIComponent(hace2min)}&select=id&limit=1`, { headers: headersSupabase() });
+      if (rec.ok && (await rec.json()).length) return json({ error: 'Ya te lo reenviamos hace un momento. Revisa tu bandeja y la carpeta de spam.' }, 429);
+      const flujo = await cargarFlujo();
+      // Se manda la versión con el botón del bot aunque ya esté vinculado.
+      const destino = { ...suscriptor, telegram_chat_id: null };
+      const r = await enviarEstacion('bienvenida_gratis', destino, CONSTRUCTORES.bienvenida_gratis(flujo, destino), { forzar: true, manual: true });
+      await volcarEnvios();
+      return r.correo ? json({ ok: true }) : json({ error: 'No se pudo enviar el correo, intenta más tarde.' }, 500);
+    }
+
     if (action === 'soporte') {
       if (suscriptor.plan !== 'vip') return json({ error: 'El soporte directo es exclusivo del plan VIP.' }, 403);
       if (req.method === 'POST') {

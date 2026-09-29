@@ -50,7 +50,10 @@ export class CuentaActivaError extends Error {}
 // password: texto plano, o null cuando la cuenta se crea con Google (en
 // ese caso entra con Google, y puede fijar una contraseña después desde
 // su panel si quiere). Devuelve la fila del suscriptor.
-export async function altaFree({ email, estado, municipio, password, referredBy, nombre, telefono, telefonoPrefijo }) {
+// correoVerificado: true cuando la cuenta viene de Google (Google ya
+// verificó que el correo es suyo) — paso "Correo ✅" del panel.
+export async function altaFree({ email, estado, municipio, password, referredBy, nombre, telefono, telefonoPrefijo, correoVerificado = false }) {
+  const verificado = correoVerificado ? { correo_verificado_at: new Date().toISOString() } : {};
   telefonoPrefijo = telefonoPrefijo || '+52';
   const historial = await historialPorCorreo(email);
   if (historial.find(f => f.activo)) {
@@ -70,6 +73,7 @@ export async function altaFree({ email, estado, municipio, password, referredBy,
       activo: true,
       plan: 'free',
       password_hash: password ? hashPassword(password) : filaPrevia.password_hash,
+      ...verificado,
       referred_by: filaPrevia.referred_by || referredBy,
       cycle_number: (filaPrevia.cycle_number || 1) + 1,
       nombre,
@@ -89,6 +93,7 @@ export async function altaFree({ email, estado, municipio, password, referredBy,
         activo: true,
         plan: 'free',
         password_hash: password ? hashPassword(password) : null,
+        ...verificado,
         referral_code: referralCode,
         referred_by: referredBy,
         cycle_number: 1,

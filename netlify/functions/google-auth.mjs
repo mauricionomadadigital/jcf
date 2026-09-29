@@ -169,7 +169,8 @@ export default async (req) => {
           referredBy: registro.ref || null,
           nombre: registro.nombre || perfil.name || '',
           telefono: '',
-          telefonoPrefijo: '+52'
+          telefonoPrefijo: '+52',
+          correoVerificado: true
         });
       }
 
@@ -178,6 +179,14 @@ export default async (req) => {
         return ir(`/?google_email=${encodeURIComponent(perfil.email)}&error=sin_cuenta`);
       }
 
+      // Entrar con Google también prueba que el correo es suyo.
+      if (!suscriptor.correo_verificado_at) {
+        await fetch(`${process.env.SUPABASE_URL}/rest/v1/suscriptores?id=eq.${suscriptor.id}`, {
+          method: 'PATCH',
+          headers: { apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ correo_verificado_at: new Date().toISOString() })
+        }).catch(() => {});
+      }
       const token = await crearSesion(suscriptor.id);
       // El token va en el fragmento (#), no en la query — así no queda
       // en el historial del navegador ni se manda a ningún servidor.

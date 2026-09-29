@@ -23,6 +23,15 @@ export default async (req) => {
   // pedir nada que ya dio (correo, estado, municipio, nombre, contraseña),
   // solo el teléfono si todavía no lo tenía (lo necesita la llamada VIP).
   const cuentaLogueada = await suscriptorDesdeToken(tokenDesdeRequest(req));
+  // Regla del negocio: para subir a VIP hay que tener cuenta (sesión) y el
+  // bot de Telegram ya vinculado — así la alerta y el soporte funcionan
+  // desde el primer minuto. Se valida aquí aunque el panel ya lo bloquee.
+  if (!cuentaLogueada) {
+    return new Response(JSON.stringify({ error: 'Inicia sesión en tu cuenta para subir a VIP.' }), { status: 401 });
+  }
+  if (!cuentaLogueada.telegram_chat_id) {
+    return new Response(JSON.stringify({ error: 'Para subir a VIP necesitas tener Telegram instalado y tu bot de Monitor JCF activado. Hazlo desde tu panel.', sinTelegram: true }), { status: 409 });
+  }
 
   let email, estado, idedo, municipio, password, phone, referredBy, nombre, telefonoPrefijo, passwordHash;
   let metaFbp = null, metaFbc = null;
