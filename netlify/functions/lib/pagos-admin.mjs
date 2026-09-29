@@ -14,6 +14,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 const VIP_DIAS = 14;
+const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
+const DOMINIOS_PROPIOS = [new URL(SITE_URL).host, 'monitorjcf.online', 'monitor-jcf-v2.netlify.app'];
 const headers = (extra = {}) => ({ apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, ...extra });
 
 async function sb(path, { method = 'GET', body, prefer } = {}) {
@@ -56,7 +58,8 @@ export async function forzarVip(paymentId) {
 }
 
 // Pagos aprobados de ESTE sitio en Mercado Pago (los que creó
-// create-preference: external_reference "JCF-…") de los últimos N días.
+// create-preference: external_reference "JCF-…" y aviso a este sitio) de
+// los últimos N días.
 async function pagosMercadoPago(dias = 60) {
   const desde = new Date(Date.now() - dias * 86400000).toISOString().replace('Z', '-00:00');
   const hasta = new Date().toISOString().replace('Z', '-00:00');
@@ -69,7 +72,10 @@ async function pagosMercadoPago(dias = 60) {
     todos.push(...(data.results || []));
     if (!data.results || data.results.length < 100) break;
   }
-  return todos.filter(p => String(p.external_reference || '').startsWith('JCF-'));
+  // Solo pagos de ESTE sitio: los avisos de Mercado Pago van a su webhook.
+  // El sitio viejo (monitor-jcf-comercial) usa la misma cuenta de Mercado
+  // Pago y el mismo prefijo "JCF-", así que el prefijo no basta.
+  return todos.filter(p => String(p.external_reference || '').startsWith('JCF-') && DOMINIOS_PROPIOS.some(d => String(p.notification_url || '').includes(d)));
 }
 
 export async function conciliarMercadoPago() {
