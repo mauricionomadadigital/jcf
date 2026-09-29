@@ -7,10 +7,13 @@ import { generarCodigoReferido } from './lib/auth.mjs';
 import { enviarCompraMeta } from './lib/meta-capi.mjs';
 import { cargarFlujo } from './lib/flujo.mjs';
 import { CONSTRUCTORES, enviarEstacion, volcarEnvios } from './lib/flujo-mensajes.mjs';
+import { registrarFallo } from './lib/fallos.mjs';
+import { enviarTelegramTexto } from './lib/soporte.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
+const ADMIN_TELEGRAM_CHAT_ID = process.env.ADMIN_TELEGRAM_CHAT_ID;
 
 function headersSupabase(extra = {}) {
   return {
@@ -51,14 +54,6 @@ async function historialPorCorreo(email) {
   return Array.isArray(data) ? data : [];
 }
 
-async function desactivarFila(id) {
-  await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${id}`, {
-    method: 'PATCH',
-    headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-    body: JSON.stringify({ activo: false })
-  });
-}
-
 async function actualizarFila(id, cambios) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${id}`, {
     method: 'PATCH',
@@ -81,25 +76,20 @@ async function insertarFila(datos) {
   return row;
 }
 
-// Da de alta el pago VIP sin duplicar identidad. Reglas:
-//
-// 1) Si la fila ACTIVA más reciente de este correo es plan=free, esto es
-//    una escalada real: se ACTUALIZA esa misma fila a vip. Conserva su
-//    id, telegram_token, telegram_chat_id y referral_code — si ya había
-//    vinculado Telegram en Gratis, sigue vinculado, no hay que repetir
-//    el paso.
-// 2) En cualquier otro caso (alta nueva, o vuelve después de un ciclo
-//    archivado) se inserta una fila nueva por ciclo — así el admin sigue
-//    viendo el historial de pagos por separado — pero heredando
-//    telegram_chat_id y referral_code de su fila más reciente si ya
-//    existían, y desactivando cualquier fila que hubiera quedado activa
-//    para ese correo, de modo que nunca haya dos filas activas a la vez.
-async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, passwordHash, referredBy, monto, nombre, telefonoPrefijo }) {
-  const historial = await historialPorCorreo(email);
-  const filaActiva = historial.find(f => f.activo);
-  const cicloMaxVip = historial.reduce((max, f) => (f.plan === 'vip' ? Math.max(max, f.cycle_number || 0) : max), 0);
-  const filaConChat = historial.find(f => f.telegram_chat_id);
-  const filaConReferido = historial.find(f => f.referral_code);
+// Da de alta el pago VIP sin duplicar identidad: UNA fila por persona.
+// - Si ya tiene fila (Gratis, VIP que renueva, o archivada de un ciclo
+//   anterior) se ACTUALIZA esa misma fila: conserva id, telegram_token,
+//   telegram_chat_id y referral_code (que es único — antes se intentaba
+//   insertar una fila nueva con el mismo código y la renovación fallaba,
+//   dejando la cuenta desactivada).
+// - Solo si nunca tuvo cuenta se inserta una fila nueva.
+// `filaObjetivo` viene de create-preference (id de la cuenta logueada);
+// si no, se busca por el correo de la CUENTA (nunca el de quien paga en
+// Mercado Pago, que puede ser otra persona: mamá, tío...).
+async function altaOEscaladaVip({ filaObjetivo, email, estado, municipio, paymentId, phone, passwordHash, referredBy, monto, nombre, telefonoPrefijo }) {
+  const historial = filaObjetivo ? [filaObjetivo] : await historialPorCorreo(email);
+  const fila = filaObjetivo || historial.find(f => f.activo) || historial[0] || null;
+  const cicloMaxVip = historial.reduce((max, f) => (f.plan === 'vip' || f.payment_id ? Math.max(max, f.cycle_number || 0) : max), 0);
 
   const camposComunes = {
     payment_id: String(paymentId),
@@ -112,24 +102,24 @@ async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, pa
     monto: monto || null,
     call_enabled: !!phone,
     vip_started_at: new Date().toISOString(),
-    activo: true
+    activo: true,
+    archivado_en: null
   };
 
-  if (filaActiva && filaActiva.plan === 'free') {
-    // Escalada real de una cuenta ya existente — nunca se le pide de
-    // nuevo la contraseña, así que si no llegó una nueva (passwordHash
-    // undefined) se conserva la que ya tenía en vez de borrarla.
-    const row = await actualizarFila(filaActiva.id, {
+  if (fila) {
+    // Nunca se le vuelve a pedir la contraseña: si no llegó una nueva se
+    // conserva la que ya tenía.
+    const row = await actualizarFila(fila.id, {
       ...camposComunes,
-      password_hash: passwordHash || filaActiva.password_hash,
-      nombre: nombre || filaActiva.nombre,
-      telefono_prefijo: telefonoPrefijo || filaActiva.telefono_prefijo,
-      referred_by: filaActiva.referred_by || referredBy || null
+      phone: phone || fila.phone || null,
+      call_enabled: !!(phone || fila.phone),
+      password_hash: passwordHash || fila.password_hash,
+      nombre: nombre || fila.nombre,
+      telefono_prefijo: telefonoPrefijo || fila.telefono_prefijo || '+52',
+      referred_by: fila.referred_by || referredBy || null
     });
     return { row, yaVinculado: !!row.telegram_chat_id };
   }
-
-  if (filaActiva) await desactivarFila(filaActiva.id);
 
   const row = await insertarFila({
     email,
@@ -137,11 +127,17 @@ async function altaOEscaladaVip({ email, estado, municipio, paymentId, phone, pa
     password_hash: passwordHash || null,
     nombre: nombre || null,
     telefono_prefijo: telefonoPrefijo || '+52',
-    referral_code: filaConReferido?.referral_code || await generarCodigoReferido(),
-    referred_by: filaConReferido?.referred_by || referredBy || null,
-    telegram_chat_id: filaConChat?.telegram_chat_id || null
+    referral_code: await generarCodigoReferido(),
+    referred_by: referredBy || null
   });
   return { row, yaVinculado: !!row.telegram_chat_id };
+}
+
+async function filaPorId(id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${Number(id)}&select=*&limit=1`, { headers: headersSupabase() });
+  if (!res.ok) return null;
+  const [fila] = await res.json();
+  return fila || null;
 }
 
 async function processPayment(paymentId) {
@@ -162,16 +158,20 @@ async function processPayment(paymentId) {
   }
 
   const meta = payment.metadata || {};
-  const email = payment.payer?.email || meta.email;
-  const estado = meta.estado;
-  const municipio = meta.municipio;
+  // La cuenta que sube a VIP es la del metadata (la que estaba logueada en
+  // el checkout). El correo del pagador de Mercado Pago es solo el último
+  // recurso: puede pagar otra persona.
+  const filaObjetivo = meta.suscriptor_id ? await filaPorId(meta.suscriptor_id) : null;
+  const email = filaObjetivo?.email || meta.email || payment.payer?.email;
+  const estado = meta.estado || filaObjetivo?.estado;
+  const municipio = meta.municipio || filaObjetivo?.municipio;
 
   if (!email || !estado || !municipio) {
     throw new Error('Faltan datos (email/estado/municipio) en el pago — revisa el metadata enviado por create-preference.');
   }
 
   const { row: suscriptor, yaVinculado } = await altaOEscaladaVip({
-    email, estado, municipio, paymentId,
+    filaObjetivo, email, estado, municipio, paymentId,
     phone: meta.phone,
     passwordHash: meta.password_hash,
     referredBy: meta.referred_by,
@@ -197,7 +197,10 @@ async function processPayment(paymentId) {
   return { ok: true, email, estado, municipio };
 }
 
+let paymentIdGlobal = null;
+
 export default async (req) => {
+  paymentIdGlobal = null;
   const url = new URL(req.url);
 
   if (req.method === 'GET') {
@@ -252,6 +255,7 @@ export default async (req) => {
       paymentId = payments[0].id;
     }
 
+    paymentIdGlobal = paymentId;
     const result = await processPayment(paymentId);
     return new Response(JSON.stringify(result), {
       status: 200,
@@ -260,7 +264,13 @@ export default async (req) => {
 
   } catch (err) {
     console.error('Error webhook:', err.message);
-    // Siempre 200 para que MercadoPago no reintente indefinidamente
+    // Un pago aprobado que no se aplica es grave: queda en Admin > Fallos y
+    // se avisa al admin por Telegram para corregirlo a mano de inmediato.
+    await registrarFallo({ tipo: 'pago', origen: 'webhook', detalle: `Pago ${paymentIdGlobal || '?'}: ${err.message}` });
+    if (ADMIN_TELEGRAM_CHAT_ID) {
+      await enviarTelegramTexto(ADMIN_TELEGRAM_CHAT_ID, `🚨 Pago de Mercado Pago NO aplicado\nPago: ${paymentIdGlobal || '?'}\nError: ${err.message}\n\nRevisa Admin > Fallos.`);
+    }
+    // 200 para que Mercado Pago no reintente en bucle
     return new Response(JSON.stringify({ error: err.message }), { status: 200 });
   }
 };

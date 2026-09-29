@@ -117,6 +117,8 @@ export default async (req) => {
     // Guardamos todo lo necesario para dar de alta al suscriptor aquí —
     // nunca la contraseña en texto plano, solo su hash.
     metadata: {
+      // Cuenta que sube a VIP (el webhook la usa en vez del correo del pagador).
+      suscriptor_id: cuentaLogueada?.id || null,
       email, estado, idedo, municipio, phone,
       nombre, telefono_prefijo: telefonoPrefijo,
       password_hash: passwordHash,
