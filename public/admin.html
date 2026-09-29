@@ -3346,24 +3346,24 @@ $('btnRefrescarFallos').addEventListener('click', () => cargarFallos().catch(err
 async function cargarPagos() {
   const { pagos } = await api('pagos');
   const totalIngresos = pagos.reduce((s,p)=>s+(Number(p.monto)||0),0);
-  const c50 = pagos.filter(p => p.discount_percent === 50).length;
-  const c70 = pagos.filter(p => p.discount_percent === 70).length;
+  const c50 = pagos.filter(p => Number(p.descuento_aplicado) === 50).length;
+  const c70 = pagos.filter(p => Number(p.descuento_aplicado) === 70).length;
   $('pagosStats').innerHTML = `
     <article class="stat"><div class="stat-label">Ingresos del ciclo</div><div class="stat-value">${money(totalIngresos)}</div><span class="delta">${pagos.length} pagos aprobados</span></article>
     <article class="stat"><div class="stat-label">Ticket VIP</div><div class="stat-value">${money(Number(CONFIG_CACHE?.vip_precio) || 100)}</div><span class="delta neutral">14 días</span></article>
     <article class="stat"><div class="stat-label">Beneficios 50 %</div><div class="stat-value">${c50}</div><span class="delta neutral">Segundo ciclo</span></article>
     <article class="stat"><div class="stat-label">Beneficios 70 %</div><div class="stat-value">${c70}</div><span class="delta neutral">Tercer ciclo</span></article>`;
   $('tablaPagos').innerHTML = pagos.map(p => `
-    <tr><td>${p.email}</td><td>${p.municipio}, ${p.estado}</td><td><strong>${money(p.monto)}</strong></td>
-      <td>Ciclo ${p.cycle_number}</td><td>${p.discount_percent ? p.discount_percent + '%' : '—'}</td>
-      <td>${fecha(p.vip_started_at || p.created_at)}</td><td>${fecha(p.finaliza)}</td>
+    <tr><td>${escHtml(p.email || '—')}${p.pagador_email && p.pagador_email !== p.email ? `<br><small class="muted">pagó: ${escHtml(p.pagador_email)}</small>` : ''}</td><td>${escHtml(p.municipio || '')}, ${escHtml(p.estado || '')}</td><td><strong>${money(p.monto)}</strong></td>
+      <td>Ciclo ${p.ciclo ?? '—'}</td><td>${p.descuento_aplicado ? p.descuento_aplicado + '%' : '—'}</td>
+      <td>${fecha(p.vip_desde || p.created_at)}</td><td>${fecha(p.finaliza)}</td>
       <td><span class="status-pill ${p.vigente ? 'open' : 'error'}">${p.vigente ? 'Vigente' : (p.plan === 'vip' ? 'Vencido, sigue VIP' : 'Vencido, ya es Gratis')}</span></td></tr>`).join('') || '<tr><td colspan="8">Sin pagos VIP todavía.</td></tr>';
   window._PAGOS_CACHE = pagos;
 }
 $('btnExportarPagos').addEventListener('click', () => {
   descargarCSV('pagos.csv', window._PAGOS_CACHE || [], [
-    {titulo:'Correo', campo:'email'}, {titulo:'Municipio', campo:'municipio'}, {titulo:'Monto', campo:'monto'},
-    {titulo:'Ciclo', campo:'cycle_number'}, {titulo:'Descuento', campo:'discount_percent'}, {titulo:'Inicio', campo:'created_at'}
+    {titulo:'Pago MP', campo:'payment_id'}, {titulo:'Correo', campo:'email'}, {titulo:'Pagó', campo:'pagador_email'}, {titulo:'Municipio', campo:'municipio'}, {titulo:'Monto', campo:'monto'},
+    {titulo:'Ciclo', campo:'ciclo'}, {titulo:'Descuento', campo:'descuento_aplicado'}, {titulo:'Método', campo:'metodo'}, {titulo:'Fecha', campo:'created_at'}
   ]);
 });
 

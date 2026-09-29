@@ -121,13 +121,16 @@ async function calcularStats() {
   // el VIP se degrada a Gratis a los 14 días (check-jcf-nacional), así
   // que los ingresos no se pierden solo porque ya venció su ciclo.
   const pagadores = suscriptores.filter(s => s.payment_id);
+  // Historial completo de pagos (sql/012); sin la tabla, se usa el último
+  // pago de cada persona como antes.
+  const pagos = await listarPagos(pagadores);
 
   const haceUnaSemana = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const nuevosSemana = activos.filter(s => new Date(s.created_at).getTime() >= haceUnaSemana).length;
 
   const municipiosUnicos = new Set(activos.map(s => normalizar(s.estado) + '|' + normalizar(s.municipio)));
 
-  const ingresos = pagadores.reduce((sum, s) => sum + (Number(s.monto) || 0), 0);
+  const ingresos = pagos.reduce((sum, p) => sum + (Number(p.monto) || 0), 0);
 
   // Conversiones VIP por día, últimos 7 días — sobre quién pagó ese día,
   // sin importar si para hoy ya se le venció el ciclo.
@@ -137,11 +140,11 @@ async function calcularStats() {
     d.setDate(d.getDate() - i);
     const clave = d.toISOString().slice(0, 10);
     const nombre = d.toLocaleDateString('es-MX', { weekday: 'short' });
-    const nuevosVip = pagadores.filter(s => (s.vip_started_at || s.created_at || '').slice(0, 10) === clave);
+    const delDia = pagos.filter(p => (p.created_at || '').slice(0, 10) === clave);
     dias.push({
       dia: nombre,
-      nuevosVip: nuevosVip.length,
-      ingreso: nuevosVip.reduce((sum, s) => sum + (Number(s.monto) || 0), 0)
+      nuevosVip: delDia.length,
+      ingreso: delDia.reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
     });
   }
 
@@ -188,15 +191,23 @@ async function calcularMonitoreos() {
 }
 
 // --- Pagos -----------------------------------------------------------------
+// Todos los pagos aprobados (una fila por pago, sql/012). Si la tabla aún
+// no existe, se arma con el último pago de cada suscriptor como antes.
+async function listarPagos(respaldo) {
+  try {
+    return await sb('pagos?select=*&order=created_at.desc&limit=1000');
+  } catch {
+    const filas = respaldo || await sb('suscriptores?payment_id=not.is.null&select=*');
+    return filas.map(s => ({ payment_id: s.payment_id, suscriptor_id: s.id, email: s.email, monto: s.monto, ciclo: s.cycle_number, estado: s.estado, municipio: s.municipio, vip_desde: s.vip_started_at, created_at: s.vip_started_at || s.created_at, descuento_aplicado: 0 }));
+  }
+}
 async function calcularPagos() {
-  // Se identifica por payment_id (quien pagó alguna vez), no por
-  // plan=vip — si no, un pago desaparece de esta lista en cuanto se
-  // cumplen los 14 días y check-jcf-nacional degrada la cuenta a free.
-  const suscriptores = await sb('suscriptores?payment_id=not.is.null&select=id,email,municipio,estado,plan,monto,cycle_number,discount_percent,vip_started_at,created_at&order=created_at.desc&limit=200');
-  return suscriptores.map(s => {
-    const inicio = s.vip_started_at || s.created_at;
+  const [pagos, cuentas] = await Promise.all([listarPagos(), sb('suscriptores?select=id,plan&limit=5000')]);
+  const porId = new Map(cuentas.map(c => [c.id, c]));
+  return pagos.map(p => {
+    const inicio = p.vip_desde || p.created_at;
     const finaliza = inicio ? new Date(new Date(inicio).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString() : null;
-    return { ...s, finaliza, vigente: finaliza ? new Date(finaliza).getTime() > Date.now() : null };
+    return { ...p, plan: porId.get(p.suscriptor_id)?.plan || null, finaliza, vigente: finaliza ? new Date(finaliza).getTime() > Date.now() : null };
   });
 }
 

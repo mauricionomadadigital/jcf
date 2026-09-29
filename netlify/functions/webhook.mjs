@@ -31,13 +31,44 @@ async function getPaymentData(paymentId) {
   return res.json();
 }
 
+// Idempotencia: la tabla pagos (sql/012) guarda TODOS los pagos aplicados;
+// suscriptores solo el último de cada persona, así que un aviso repetido
+// de un pago viejo (tras una renovación) se volvería a aplicar si solo se
+// revisara ahí. Si la tabla aún no existe, se cae a suscriptores.
 async function paymentAlreadyProcessed(paymentId) {
+  const enPagos = await fetch(`${SUPABASE_URL}/rest/v1/pagos?payment_id=eq.${encodeURIComponent(paymentId)}&select=id&limit=1`, { headers: headersSupabase() });
+  if (enPagos.ok) {
+    const filas = await enPagos.json();
+    if (filas.length) return true;
+  }
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/suscriptores?payment_id=eq.${paymentId}&select=id&limit=1`,
     { headers: headersSupabase() }
   );
   const data = await res.json();
   return Array.isArray(data) && data.length > 0;
+}
+
+// Una fila por pago aprobado (historial completo para el admin).
+async function registrarPago({ paymentId, suscriptor, payment, meta }) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/pagos?on_conflict=payment_id`, {
+    method: 'POST',
+    headers: headersSupabase({ 'Content-Type': 'application/json', Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+    body: JSON.stringify({
+      payment_id: String(paymentId),
+      suscriptor_id: suscriptor.id,
+      email: suscriptor.email,
+      pagador_email: payment.payer?.email || null,
+      monto: payment.transaction_amount ?? null,
+      descuento_aplicado: Number(meta.descuento_aplicado) || 0,
+      ciclo: suscriptor.cycle_number,
+      estado: suscriptor.estado,
+      municipio: suscriptor.municipio,
+      metodo: payment.payment_type_id || payment.payment_method_id || null,
+      vip_desde: suscriptor.vip_started_at
+    })
+  });
+  if (!res.ok) await registrarFallo({ tipo: 'pago', origen: 'registrarPago', detalle: `Pago ${paymentId} aplicado pero no guardado en el historial: ${await res.text()}` });
 }
 
 // Trae TODAS las filas de ese correo, más reciente primero. Con esto
@@ -179,6 +210,7 @@ async function processPayment(paymentId) {
     telefonoPrefijo: meta.telefono_prefijo,
     monto: payment.transaction_amount
   });
+  await registrarPago({ paymentId, suscriptor, payment, meta });
 
   // Estación 8 del flujo (Admin > Flujo). Correo transaccional (forzar).
   const flujo = await cargarFlujo();
