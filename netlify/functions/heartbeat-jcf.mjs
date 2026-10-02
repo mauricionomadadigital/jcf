@@ -54,6 +54,7 @@ export default async () => {
     }
     const cadaHoras = flujo.param('seguimos_vigilando', 'cada_horas');
     const store = getStore('jcf-nacional');
+    await store.set('heartbeat_tick', new Date().toISOString());
     const ultimo = await store.get('heartbeat_ultimo', { type: 'text' });
     // 5 min de tolerancia para el desfase normal del cron.
     if (ultimo && Date.now() - new Date(ultimo).getTime() < cadaHoras * 3600000 - 5 * 60000) {

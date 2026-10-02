@@ -183,6 +183,10 @@
       .system-mini strong {
         color: #fff;
       }
+      .live-chip.mal { background: #fdecec !important; color: #b42318 !important; border-color: #f5b5b5 !important; }
+      .live-chip.mal .pulse { background: #e4545e !important; }
+      .live-chip.pausa { background: #fff4e5 !important; color: #9a4b00 !important; }
+      .live-chip.pausa .pulse { background: #f1a526 !important; }
       .pulse {
         display: inline-block;
         width: 8px;
@@ -2519,7 +2523,7 @@
             </div>
           </div>
           <div class="top-actions">
-            <div class="live-chip"><span class="pulse"></span>Monitoreo activo</div>
+            <div class="live-chip" id="chipSalud" title="Estado de los procesos automáticos"><span class="pulse"></span><span id="chipSaludTxt">Revisando…</span></div>
             <button class="btn btn-outline" id="btnCerrarSesion" style="height:40px;">Cerrar sesión</button>
           </div>
         </header>
@@ -3112,7 +3116,37 @@ if (guardada) {
   }).catch(() => sessionStorage.removeItem('jcf_admin_pass'));
 }
 
+// --- Salud de los procesos automáticos -------------------------------------------
+// El cron de monitoreo corre cada 5 min y deja un "latido". Si deja de
+// actualizarse, aquí se ve en rojo (antes una falla al arrancar era invisible).
+function haceMin(iso){ return iso ? Math.round((Date.now() - new Date(iso).getTime()) / 60000) : null; }
+async function revisarSalud(){
+  const chip = $('chipSalud'), txt = $('chipSaludTxt');
+  chip.classList.remove('mal', 'pausa');
+  try {
+    const s = await api('salud');
+    if (!s.ok) throw new Error(s.error);
+    const m = haceMin(s.tick);
+    const hoy = new Date().toISOString().slice(0, 10);
+    const enPeriodo = s.config?.periodo_inicio && s.config?.periodo_fin && hoy >= s.config.periodo_inicio && hoy <= s.config.periodo_fin;
+    if (m === null || m > 12) {
+      chip.classList.add('mal');
+      txt.textContent = m === null ? '⚠ Monitoreo detenido (nunca ha corrido)' : `⚠ Monitoreo detenido (última revisión hace ${m} min)`;
+    } else if (!enPeriodo) {
+      chip.classList.add('pausa');
+      txt.textContent = 'Fuera del periodo de monitoreo';
+    } else {
+      txt.textContent = `Monitoreo activo · revisó hace ${m} min`;
+    }
+    chip.title = `Última vuelta: ${s.tick ? fechaHora(s.tick) : 'nunca'} · Revisión VIP: ${s.vip ? fechaHora(s.vip) : 'nunca'} · Gratis: ${s.free ? fechaHora(s.free) : 'nunca'} · "Seguimos vigilando": ${s.heartbeatEnvio ? fechaHora(s.heartbeatEnvio) : 'nunca'}`;
+  } catch (err) {
+    chip.classList.add('mal'); txt.textContent = '⚠ No se pudo revisar el monitoreo';
+  }
+}
+
 function arrancar(){
+  revisarSalud();
+  setInterval(revisarSalud, 60000);
   cargarCatalogoAdmin();
   document.querySelectorAll('.toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
   showScreen('dashboard');

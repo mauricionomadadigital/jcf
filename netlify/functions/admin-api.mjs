@@ -7,6 +7,7 @@ import { guardarMensaje, hiloDe, enviarTelegramTexto } from './lib/soporte.mjs';
 import { validarBase64Imagen, TOTAL_BANNERS, MAX_BYTES_BANNER } from './lib/banners.mjs';
 import { cargarFlujo } from './lib/flujo.mjs';
 import { forzarVip, conciliarMercadoPago, aplicarPago } from './lib/pagos-admin.mjs';
+import { getStore } from '@netlify/blobs';
 import { enviarCorreo, plantillaAviso } from './lib/email.mjs';
 import { estadoFlujo, guardarEstacion, restaurarEstacion, probarEstacion } from './lib/flujo-admin.mjs';
 import { destinatarios as destinatariosFlujo, dispararUno, historialDisparos } from './lib/flujo-disparo.mjs';
@@ -388,6 +389,18 @@ export default async (req) => {
     if (req.method === 'GET' && action === 'stats') return json({ ok: true, stats: await calcularStats() });
     if (req.method === 'GET' && action === 'monitoreos') return json({ ok: true, monitoreos: await calcularMonitoreos() });
     if (req.method === 'GET' && action === 'pagos') return json({ ok: true, pagos: await calcularPagos() });
+    // Salud de los procesos automáticos (indicador del admin).
+    if (req.method === 'GET' && action === 'salud') {
+      try {
+        const store = getStore('jcf-nacional');
+        const leer = (k) => store.get(k, { type: 'text' });
+        const [tick, resultado, heartbeat, heartbeatEnvio, vip, free] = await Promise.all([
+          leer('cron_ultimo_tick'), store.get('cron_ultimo_resultado', { type: 'json' }), leer('heartbeat_tick'),
+          leer('heartbeat_ultimo'), leer('ultima_revision_vip'), leer('ultima_revision_free')
+        ]);
+        return json({ ok: true, ahora: new Date().toISOString(), tick, resultado, heartbeat, heartbeatEnvio, vip, free, config: await getConfig() });
+      } catch (err) { return json({ ok: false, error: err.message }); }
+    }
     // --- Pagos: herramientas manuales del admin ---
     if (req.method === 'POST' && action === 'forzar-vip') {
       try { return json({ ok: true, ...(await forzarVip((await req.json()).payment_id)) }); }

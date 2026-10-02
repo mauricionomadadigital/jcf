@@ -1,2 +1,5 @@
 # Local Netlify folder
 .netlify
+
+# Dependencias (se instalan con npm install)
+node_modules

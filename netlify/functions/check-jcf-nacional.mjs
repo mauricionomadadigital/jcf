@@ -411,6 +411,9 @@ function conTimeout(promesa, ms, mensajeError) {
 async function ejecutarRevisionNacional() {
   const config = await leerConfiguracion();
   const store = getStore('jcf-nacional');
+  // Latido del cron: el admin muestra "Monitoreo detenido" si deja de
+  // actualizarse (así una falla al arrancar ya no pasa desapercibida).
+  await store.set('cron_ultimo_tick', new Date().toISOString());
 
   const cierre = await cerrarPeriodoSiVencido(config, store);
   if (cierre.cerrado) {
@@ -478,6 +481,13 @@ export default async () => {
       20000,
       'La revisión nacional tardó demasiado (más de 20 segundos) y se canceló'
     );
+    try {
+      await getStore('jcf-nacional').setJSON('cron_ultimo_resultado', {
+        fecha: new Date().toISOString(), activo: resultado.activo, motivo: resultado.motivo || null,
+        vip: resultado.vip?.reviso ? { cambios: resultado.vip.cambiosDetectados, alertas: resultado.vip.alertasEnviadas } : null,
+        free: resultado.free?.reviso ? { cambios: resultado.free.cambiosDetectados, alertas: resultado.free.alertasEnviadas } : null
+      });
+    } catch {}
     return new Response(JSON.stringify(resultado), {
       headers: { 'content-type': 'application/json' }
     });
