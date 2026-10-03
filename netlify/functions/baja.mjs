@@ -5,9 +5,11 @@
 // para el link de "vincular tu Telegram") — no expone nada que no supiera
 // ya la persona dueña de ese correo.
 //
-// Es un DELETE real e inmediato: borra la fila de suscriptores por
-// completo. No hay confirmación intermedia porque el usuario ya decidió
-// al hacer clic — coincide con el botón "Dar de baja" del panel logueado.
+// Abrir el link (GET) SOLO muestra una página de confirmación; la cuenta
+// se borra al presionar el botón (POST). Antes el GET borraba de una vez,
+// y las vistas previas de links de Telegram y los filtros de seguridad de
+// correo (que "abren" los links solos) podían borrar cuentas sin que el
+// cliente hiciera nada.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -20,7 +22,7 @@ function headersSupabase(extra = {}) {
   };
 }
 
-function pagina(titulo, mensaje) {
+function pagina(titulo, mensaje, extra = '') {
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${titulo} — Monitor JCF</title>
@@ -30,8 +32,9 @@ function pagina(titulo, mensaje) {
     h1{color:#34d399;font-size:20px;margin:0 0 12px;}
     p{color:#9aa7bd;line-height:1.5;}
     a{color:#34d399;}
+    button{margin-top:18px;background:#c0491f;color:#fff;border:0;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;}
   </style></head>
-  <body><div class="card"><h1>🔔 Monitor JCF</h1><p>${mensaje}</p></div></body></html>`;
+  <body><div class="card"><h1>🔔 Monitor JCF</h1><p>${mensaje}</p>${extra}</div></body></html>`;
 }
 
 function html(body, status = 200) {
@@ -56,6 +59,15 @@ export default async (req) => {
 
     if (!suscriptor) {
       return html(pagina('Ya no existe', 'Esta cuenta ya no existe — probablemente ya te habías dado de baja antes.'));
+    }
+
+    // GET = solo confirmar. Nada se borra hasta presionar el botón.
+    if (req.method !== 'POST') {
+      const t = token.replace(/[^0-9a-zA-Z-]/g, '');
+      return html(pagina('¿Darte de baja?',
+        'Si confirmas, se borra tu cuenta y dejarás de recibir avisos cuando abra tu municipio. Si solo quieres menos mensajes, puedes apagar canales desde tu panel.',
+        `<form method="POST" action="/.netlify/functions/baja?token=${t}"><button type="submit">Sí, darme de baja</button></form>
+         <p style="margin-top:14px;font-size:13px;"><a href="/panel.html">No, volver a mi panel</a></p>`));
     }
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/suscriptores?id=eq.${suscriptor.id}`, {

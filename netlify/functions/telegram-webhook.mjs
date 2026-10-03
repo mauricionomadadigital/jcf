@@ -12,6 +12,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SITE_URL = process.env.SITE_URL || 'https://monitorjcf.online';
+// Clave que Telegram manda en cada aviso (setWebhook secret_token). Si está
+// configurada, se rechaza todo lo que no la traiga: nadie puede fingir
+// mensajes de un cliente al bot.
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 async function buscarPorChat(chatId) {
   const res = await fetch(
@@ -64,6 +68,9 @@ async function vincularChatId(id, chatId) {
 export default async (req) => {
   if (req.method !== 'POST') {
     return new Response('OK', { status: 200 });
+  }
+  if (TELEGRAM_WEBHOOK_SECRET && req.headers.get('x-telegram-bot-api-secret-token') !== TELEGRAM_WEBHOOK_SECRET) {
+    return new Response('No autorizado', { status: 401 });
   }
 
   try {

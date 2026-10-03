@@ -246,13 +246,21 @@ async function procesarRefuerzosVip(store) {
   for (const clave of claves) {
     const r = refuerzos[clave];
     // Secuencias del formato anterior (sin "usuarios") o ya vencidas/cerradas: fuera.
-    if (!r.usuarios || snapshot[clave] !== 'Abierto' || ahora - r.primera > ventana) { delete refuerzos[clave]; continue; }
+    // Se corta si el municipio ya no está Abierto o si a todos sus clientes
+    // ya se les cumplió la ventana (cada uno cuenta desde su propio aviso).
+    const inicios = Object.values(r.usuarios || {}).map(u => u.inicio || r.primera);
+    const vencida = !inicios.length || inicios.every(i => ahora - i > ventana);
+    if (!r.usuarios || snapshot[clave] !== 'Abierto' || vencida) { delete refuerzos[clave]; continue; }
     if (!activa) continue; // apagada en Admin > Flujo: se pausa sin borrar
     res.secuencias++;
-    const transcurrido = ahora - r.primera;
     const destinatarios = vips.filter(s => normalizar(s.estado) + '|' + normalizar(s.municipio) === clave);
     for (const s of destinatarios) {
-      const u = r.usuarios[s.id] || (r.usuarios[s.id] = { tg: 0, correo: 0, llamadas: 0 });
+      // Solo clientes que ya recibieron su aviso de apertura (revisarPlan
+      // los agrega); quien aún no, lo recibe en la próxima revisión VIP.
+      const u = r.usuarios[s.id];
+      if (!u) continue;
+      const transcurrido = ahora - (u.inicio || r.primera);
+      if (transcurrido > ventana) continue;
       const datos = { n: u.tg + 1, total: totalTg, municipio: r.municipio, estado: r.estado };
       // Telegram: uno por tick como máximo, aunque se hayan perdido ticks.
       if (transcurrido >= (u.tg + 1) * tgCada && u.tg < totalTg) {
@@ -310,6 +318,7 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
 
   const snapshotAnterior = (await store.get(claveSnapshot, { type: 'json' })) || {};
   const snapshotNuevo = {};
+  const nombreMunicipio = {};
   const cambios = [];
 
   for (const m of municipiosRelevantes) {
@@ -317,6 +326,7 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
     const clave = nombreEstado + '|' + normalizar(m.lmun);
     const nuevoTexto = estadoTexto(m.status);
     snapshotNuevo[clave] = nuevoTexto;
+    nombreMunicipio[clave] = m.lmun;
 
     const anterior = snapshotAnterior[clave];
     if (anterior !== undefined && anterior !== nuevoTexto && (m.status === 1 || m.status === 2)) {
@@ -332,58 +342,72 @@ async function revisarPlan({ plan, store, catalogo, registrarHistorial }) {
   const flujo = await cargarFlujo();
   const refuerzos = plan === 'vip' ? ((await store.get(claveRefuerzos, { type: 'json' })) || {}) : {};
 
+  // Quién ya recibió el aviso de la apertura en curso de cada municipio.
+  const claveAvisados = `avisados_apertura_${plan}`;
+  const avisados = (await store.get(claveAvisados, { type: 'json' })) || {};
   let alertasEnviadas = 0;
   let llamadasIntentadas = 0;
+  const claveDe = (x) => normalizar(x.estado) + '|' + normalizar(x.municipio);
 
+  // 1) Cambios de estado: historial para el admin y, si NO es apertura
+  //    (p. ej. Meta alcanzada), el aviso de cambio de estado.
   for (const cambio of cambios) {
-    const estadoNombreReal = suscriptores.find(s => normalizar(s.estado) + '|' + normalizar(s.municipio) === cambio.clave)?.estado || '';
-
+    const estadoNombreReal = suscriptores.find(x => claveDe(x) === cambio.clave)?.estado || '';
     if (registrarHistorial) {
       await registrarCambioHistorial({
         estado: estadoNombreReal, municipio: cambio.municipio,
         estado_anterior: cambio.estadoAnterior, estado_nuevo: cambio.estadoNuevo
       });
     }
-
-    const destinatarios = suscriptores.filter(s => normalizar(s.estado) + '|' + normalizar(s.municipio) === cambio.clave);
-
-    const esApertura = cambio.estadoNuevo === 'Abierto';
-    const datos = { municipio: cambio.municipio, estado: estadoNombreReal, estadoNuevo: cambio.estadoNuevo };
-    const llamadasPorCliente = {};
-    for (const s of destinatarios) {
-      // Apertura: Telegram + correo, nunca se apaga. Cambio de estado (p. ej.
-      // Meta alcanzada): solo Telegram, y se puede apagar en Admin > Flujo.
-      if (esApertura) {
-        const r = await enviarEstacion('apertura', s, CONSTRUCTORES.apertura(flujo, s, datos));
+    if (cambio.estadoNuevo !== 'Abierto' && flujo.activo('cambio_estado')) {
+      const datos = { municipio: cambio.municipio, estado: estadoNombreReal, estadoNuevo: cambio.estadoNuevo };
+      for (const x of suscriptores.filter(y => claveDe(y) === cambio.clave)) {
+        const r = await enviarEstacion('cambio_estado', x, CONSTRUCTORES.cambio_estado(flujo, x, datos));
         if (r.telegram) alertasEnviadas++;
-      } else if (flujo.activo('cambio_estado')) {
-        const r = await enviarEstacion('cambio_estado', s, CONSTRUCTORES.cambio_estado(flujo, s, datos));
-        if (r.telegram) alertasEnviadas++;
-      }
-
-      // Llamada 1 (minuto 0): exclusiva VIP. Los reintentos los hace
-      // procesarRefuerzosVip si no contesta.
-      if (plan === 'vip' && esApertura && puedeLlamar(s)) {
-        llamadasIntentadas++;
-        await llamarVip(s, { clave: cambio.clave, municipio: cambio.municipio, estado: estadoNombreReal, intento: 1 });
-        llamadasPorCliente[s.id] = 1;
-      }
-    }
-
-    // Secuencia de recordatorios reforzados VIP, por cliente (la avanza
-    // procesarRefuerzosVip en cada tick de 5 min). Si el municipio deja de
-    // estar Abierto, la secuencia se corta.
-    if (plan === 'vip') {
-      if (esApertura) {
-        refuerzos[cambio.clave] = {
-          primera: ahora, municipio: cambio.municipio, estado: estadoNombreReal,
-          usuarios: Object.fromEntries(destinatarios.map(s => [s.id, { tg: 0, correo: 0, llamadas: llamadasPorCliente[s.id] || 0 }]))
-        };
-      } else {
-        delete refuerzos[cambio.clave];
       }
     }
   }
+
+  // 2) Apertura POR CLIENTE: todo cliente cuyo municipio está Abierto y que
+  //    aún no recibió el aviso de ESTA apertura lo recibe ahora (Telegram,
+  //    correo y, si es VIP, la llamada 1 + su secuencia de recordatorios).
+  //    Así también le llega a quien se registra con su municipio ya abierto
+  //    y en la primera vuelta del sistema — antes solo se avisaba si el
+  //    estado CAMBIABA entre dos revisiones.
+  for (const [clave, texto] of Object.entries(snapshotNuevo)) {
+    if (texto !== 'Abierto') {
+      delete avisados[clave];
+      if (plan === 'vip') delete refuerzos[clave];
+      continue;
+    }
+    const ya = new Set(avisados[clave] || []);
+    const pendientes = suscriptores.filter(x => claveDe(x) === clave && !ya.has(x.id));
+    if (!pendientes.length) continue;
+    const datos = { municipio: nombreMunicipio[clave] || pendientes[0].municipio, estado: pendientes[0].estado, estadoNuevo: 'Abierto' };
+    if (plan === 'vip' && !refuerzos[clave]) {
+      refuerzos[clave] = { primera: ahora, municipio: datos.municipio, estado: datos.estado, usuarios: {} };
+    }
+    for (const x of pendientes) {
+      const r = await enviarEstacion('apertura', x, CONSTRUCTORES.apertura(flujo, x, datos));
+      if (r.telegram) alertasEnviadas++;
+      let llamadas = 0;
+      // Llamada 1 (minuto 0): exclusiva VIP. Los reintentos los hace
+      // procesarRefuerzosVip si no contesta.
+      if (plan === 'vip' && puedeLlamar(x)) {
+        llamadasIntentadas++;
+        await llamarVip(x, { clave, municipio: datos.municipio, estado: datos.estado, intento: 1 });
+        llamadas = 1;
+      }
+      // Secuencia de recordatorios VIP de este cliente, contada desde su
+      // propio aviso (inicio), aunque la apertura haya empezado antes.
+      if (plan === 'vip') refuerzos[clave].usuarios[x.id] = { tg: 0, correo: 0, llamadas, inicio: ahora };
+      ya.add(x.id);
+    }
+    avisados[clave] = [...ya];
+  }
+  // Limpieza: municipios que ya no vigila nadie de este plan.
+  for (const clave of Object.keys(avisados)) if (!(clave in snapshotNuevo)) delete avisados[clave];
+  await store.setJSON(claveAvisados, avisados);
 
   if (plan === 'vip') {
     await store.setJSON(claveRefuerzos, refuerzos);
@@ -438,9 +462,6 @@ async function ejecutarRevisionNacional() {
     }
   }
 
-  // Recordatorios reforzados VIP: en cada tick de 5 min.
-  const refuerzosVip = await procesarRefuerzosVip(store);
-
   const frecVip = config.vip_frecuencia_min || DEFAULT_VIP_MIN;
   const frecFree = config.free_frecuencia_min || DEFAULT_FREE_MIN;
 
@@ -449,7 +470,11 @@ async function ejecutarRevisionNacional() {
     leToca('free', frecFree, store)
   ]);
 
+  // Recordatorios reforzados VIP: en CADA tick de 5 min, y siempre DESPUÉS
+  // de la revisión del catálogo (si la hubo) — así nunca se manda "sigue
+  // ABIERTO" en el mismo tick en que el municipio cerró.
   if (!vipLeToca && !freeLeToca) {
+    const refuerzosVip = await procesarRefuerzosVip(store);
     return { ok: true, activo: true, motivo: 'A ningún plan le tocaba revisar todavía en este tick.', vipDegradados, refuerzosVip };
   }
 
@@ -471,6 +496,7 @@ async function ejecutarRevisionNacional() {
     ? await revisarPlan({ plan: 'free', store, catalogo, registrarHistorial: !historialYaRegistradoEsteTick })
     : { reviso: false };
 
+  const refuerzosVip = await procesarRefuerzosVip(store);
   return { ok: true, activo: true, vipDegradados, refuerzosVip, vip, free };
 }
 
